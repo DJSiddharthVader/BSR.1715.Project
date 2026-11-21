@@ -1,0 +1,50 @@
+---
+title: Demographics Information 
+date: "`r Sys.Date()`"
+author: "Lorzena Bartu, Siddharth Reed"
+lightbox: true
+format:
+    html:
+        df-print: paged
+        embed-resources: true
+        page-layout: full
+        toc: true
+        number_sections: true
+        code-fold: true
+        smooth-scroll: true
+        fig-width: 9
+        fig-height: 5
+        theme:
+            dark: darkly
+            light: flatly
+
+---
+
+Set notebook options
+```{r knitr_options}
+#| context: setup
+#| include: false
+
+library(knitr)
+knitr::opts_chunk$set(
+    warning=FALSE,
+    # dev=c('png', 'pdf', 'svg'),
+    dev=c('png'),
+    dpi=300
+)
+```
+Load dependencies
+```{r load_basic_dependencies}
+#| context: setup
+#| include: false
+
+library(here)
+source(here('scripts', 'basic_imports.R'))
+```
+Load all clean data
+```{r load_data}
+all_combined_data <- load_all_combined_data(force_redo=TRUE)
+```
+Make some plots
+```{r}
+```
