@@ -1,7 +1,9 @@
 ---
 title: Demographics Information 
 date: "`r Sys.Date()`"
-author: "Lorzena Bartu, Siddharth Reed"
+authors: 
+  - "Lorzena Bartu"
+  - "Siddharth Reed"
 lightbox: true
 format:
     html:
@@ -20,6 +22,8 @@ format:
 
 ---
 
+## Dependencies
+
 Set notebook options
 ```{r knitr_options}
 #| context: setup
@@ -34,17 +38,126 @@ knitr::opts_chunk$set(
 )
 ```
 Load dependencies
-```{r load_basic_dependencies}
+```{r load_dependencies}
 #| context: setup
 #| include: false
 
 library(here)
 source(here('scripts', 'basic_imports.R'))
+library(scales)
+library(cowplot)
+library(patchwork)
 ```
-Load all clean data
+
+## Load Data
+Load clean demographics data
 ```{r load_data}
-all_combined_data <- load_all_combined_data(force_redo=TRUE)
+# all_combined_data <- load_all_combined_data(force_redo=FALSE)
+demographics_df <- 
+    clean_demographics_data() %>% 
+    # turn columns into neat factors, leaving NAs as NAs
+    factorize_demographics_data() %>% 
+    # remove all patients without complete demographic records
+    filter(if_all(everything(), ~!is.na(.x))) %>%
+    select(
+        FID,
+        current_age,
+        gender,
+        ethnicity,
+        is_deceased,
+        is_religious,
+        is_cisgender,
+        is_married
+    )
 ```
-Make some plots
-```{r}
+
+## Plot Stuff 
+
+Plot individual distributions for all `r nrow(demographics_df)` patients with no missing data.
+```{r plot_demographics, fig.dims=c(6, 8)}
+make_single_ggbar <- function(col_name){
+    plot.obj <- 
+        demographics_df %>% 
+        select(!!sym(col_name)) %>%
+        count(!!sym(col_name)) %>% 
+        add_column(feature=col_name) %>%  # dummy x-axis
+        mutate(pct=prop.table(n)) %>%  # counts to percentages
+        arrange(!!sym(col_name)) %>% 
+        mutate(ypos=1 - (cumsum(pct) - pct/2)) %>%  # percentage label position on figure
+        {
+            ggplot(
+                data=.,
+                aes(
+                    x=feature,
+                    y=pct,
+                    fill=.data[[col_name]],
+                )
+            ) + 
+            geom_col(position='stack') +  # stacked bar plot
+            geom_text(
+                aes(
+                    label=scales::percent(pct, accuracy=0.1),
+                    y=ypos
+                ),
+                vjust=0.5,    # nudge above top of bar
+                size = 3
+            ) + 
+            scale_y_continuous(labels=scales::percent) +
+            guides(fill=guide_legend(ncol=1)) +
+            theme_minimal() +
+            theme(
+                # axis.text.x=element_text(angle=55, vjust=1, hjust=1),
+                # axis.text.x = element_blank(),
+                legend.position='right',
+                axis.title = element_blank()
+            )
+        }
+}
+current_age_dist <- 
+    demographics_df %>% select(current_age) %>% add_column(feature='age') %>%
+    {
+        ggplot(
+            aes(x=current_age),
+            data=.
+        ) + 
+        geom_histogram(binwidth=1) +
+        # coord_flip() +
+        scale_y_continuous(labels=label_number(scale_cut=cut_short_scale())) +
+        theme_minimal() +
+        theme(
+            axis.text.x=element_text(angle=55),
+            axis.title.y=element_blank()
+        )
+    }
+# make plot with patchwork
+design <- "
+CCAB
+DEFG
+"
+{
+    make_single_ggbar('gender')       +
+    make_single_ggbar('ethnicity')    + 
+    current_age_dist +
+    make_single_ggbar('is_deceased')  +
+    make_single_ggbar('is_religious') +
+    make_single_ggbar('is_cisgender') +
+    make_single_ggbar('is_married')   +
+    plot_layout(design=design)
+}
 ```
+Plot crosstabs of everything with w/ Gender
+```{r demographic_pair_plots_by_gender}
+#| output: false
+
+demographics_df %>%
+    select(-FID) %>%
+    ggpairs(
+        binwidth=1,
+        columns=setdiff(colnames(demographics_df), c('FID', 'gender')),
+        mapping=ggplot2::aes(color=gender),
+        proportions='auto',
+        upper = list(continuous = wrap(ggally_cor, displayGrid = FALSE))
+    ) +
+    theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1))
+```
+

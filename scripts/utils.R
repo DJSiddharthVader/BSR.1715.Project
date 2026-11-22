@@ -91,6 +91,7 @@ check_cached_results <- function(
 clean_demographics_data <- function() {
     DEMOGRAPHICS_FILE %>%
     read_delim(
+        show_col_types=FALSE,
         delim='|',
         col_select=
             c(
@@ -103,24 +104,24 @@ clean_demographics_data <- function() {
                 "death_date"
             )
     ) %>% 
+    dplyr::rename('dob'=birth_date, 'dod'=death_date) %>% 
     mutate(
         across(
-            c(dob, dod),
-            as.Date,
-            format="%m/%d/%Y"
+            .cols=c(dob, dod),
+            .fn=~ as.Date(.x, format="%m/%d/%Y")
         )
     ) %>% 
     mutate(
-        curent_age=
+        current_age=
             case_when(
-                is.na(dod) ~ floor(as.numeric(Sys.Date() - set_2026$dob) / 365.25), 
-                !is.na(dod) ~ floor(as.numeric(set_2026$dod - set_2026$dob) / 365.25)
+                is.na(dod) ~ floor(as.numeric(Sys.Date() - dob) / 365.25), 
+                !is.na(dod) ~ floor(as.numeric(dod - dob) / 365.25)
             ), 
         is_deceased=!is.na(dod), 
         is_religious= 
             case_when(
                 religion %in% RELIGIONS_LABELS ~ 1, 
-                religion %in% NON_RELIGIOS_LABELS ~ 0, 
+                religion %in% NON_RELIGIOUS_LABELS ~ 0, 
                 religion %in% UNKNOWN_LABELS ~ NA
             ), 
         is_married= 
@@ -145,6 +146,22 @@ clean_demographics_data <- function() {
         is_religious,
         is_married,
         is_relationship
+    ) %>%
+    left_join(
+        PATIENT_COVARIATES_DATA_FILE %>% 
+        read_tsv(show_col_types=FALSE) %>%
+        # seems like a reasonable definition for this dataset if we want to analyze
+        mutate(is_cisgender=(SelfIdentifiedGender == SequencedGender)) %>% 
+        dplyr::rename('ethnicity'=Class) %>% 
+        select(
+            FID,
+            # SelfIdentifiedGender,
+            # SequencedGender,
+            is_cisgender,
+            # HM3_population,
+            ethnicity
+        ),
+        by='FID'
     )
 }
 
@@ -257,20 +274,6 @@ load_problems_data <- function(force_redo=FALSE, ...) {
 ############################################################
 # Combine data sources together
 ############################################################
-load_patient_covariates <- function(){
-    PATIENT_COVARIATES_DATA_FILE %>% 
-    read_tsv(show_col_types=FALSE) %>%
-    dplyr::rename('Ethnicity'=Class) %>% 
-    select(
-        FID,
-        SelfIdentifiedGender,
-        SequencedGender,
-        HM3_population,
-        Ethnicity
-    ) %>%
-    mutate(is_cis= (SelfIdentifiedGender == SequencedGender))
-}
-
 load_SA_codes <- function(){
     si_codes <- 
         fread(SI_CODES_FILE, header=FALSE)[,.(ICD_code=V1)]
@@ -298,10 +301,6 @@ combine_all_data <- function(){
         encounters_df,
         problems_df,
         medical_history_df
-    ) %>% 
-    left_join(
-        load_patient_covariates(),
-        by='FID'
     ) %>% 
     left_join(
         clean_demographics_data(),
@@ -336,3 +335,83 @@ load_all_combined_data <- function(force_redo=FALSE, ...){
 }
 
 dedup_cases <- function(
+    all_combined_data,
+    include_codes){
+    controls <- 
+        all_combined_data %>% 
+        filter(status == "control")
+    case_counts <-
+        all_combined_data %>% 
+        filter(
+            status == "case",
+            ICD_code %in% unique(include_codes$ICD_code)
+        ) %>%
+        # count total how many times each patient was assigned each ICD code
+        merge(include_codes, by="ICD_code") %>% 
+        group_by(ICD_group) %>%
+        count(FID, ICD_code) %>%
+        # Reshape so one row per FID, columns are ICD codes, 
+        pivot_wider(
+            names_from = ICD_code,
+            values_from = n,
+            values_fill = 0
+        ) %>%
+        mutate(SUM=rowSums(across(-FID))) %>%
+        ungroup() %>% 
+        select(FID, ICD_group, SUM) %>%
+        pivot_wider(
+            names_from = ICD_group,
+            values_from = SUM,
+            values_fill = 0
+        ) %>% 
+        mutate(
+            si_icd = case_when( si > 0 ~ 1),
+            nsa_icd = case_when( na_sa > 0 ~ 1),
+            any_icd = 1, 
+            any_sui = case_when( na_sa > 0 | b_sa > 0 ~ 1), 
+            any_sa = case_when( na_sa > 0 ~ 1 ),
+            any_si = case_when( si > 0 ~ 1),
+            any_si_cleaned_controls = case_when( any_si > 0 ~ 1, b_sa > 0 | any_sa > 0 ~ -9 ), 
+            any_sa_cleaned_controls = case_when( na_sa > 0 ~ 1, si > 0 ~ -9),
+            any_si_only_cleaned_controls = case_when( si > 0 & b_sa == 0 & na_sa == 0 ~ 1, b_sa != 0 | na_sa != 0 ~ -9),
+            # any_nsa = case_when(na_sa > 0 ~ 1)
+        ) %>%
+        mutate(across(everything(), ~replace_na(.x, 0)))
+    # return cases + controls
+    controls %>% select(FID) %>% distinct() %>% 
+    bind_rows(case_counts) %>%
+    mutate(across(everything(), ~ replace(., is.na(.), 0)))
+}
+
+############################################################
+# Compare 2024 vs 2026 data
+############################################################
+load_all_2024_data <- function(){
+    fread(
+        "/sc/arion/projects/mscic1/mullins_lab_biome_projs/cnv_sui/final_analytic_set_all_notes_20240515_subjectids.txt", 
+        select= 
+            c(
+                "SUBJECT_ID",
+                "si_icd",
+                "nsa_icd",
+                "any_icd", 
+                "predSI",
+                "predSB",
+                "nlp_si_sb",
+                "any_sui", 
+                "any_si",
+                "any_sa",
+                "in_notes",
+                "any_si_cleaned_controls",
+                "any_sa_cleaned_controls",
+                "any_si_only_cleaned_controls",
+                "genetically_determined",
+                "sex",
+                "CURRENT_AGE_2024"
+            )
+    ) %>%
+  rename('FID'=SUBJECT_ID) 
+
+
+}
+

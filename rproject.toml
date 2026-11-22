@@ -27,4 +27,6 @@ dependencies = [
     "magrittr",
     "tictoc",
     "furrr",
+    "GGally",
+    "quarto",
 ]
