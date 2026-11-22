@@ -26,10 +26,10 @@ RELIGIONS_LABELS <-
         "SHINTO",
         "SIKH"
     )
-NON_RELIGIOS_LABELS <- 
+NON_RELIGIOUS_LABELS <- 
     c(
         "UNAFFILIATED/NONE",
-        "None",
+        "NONE",
         "ATHEIST",
         "HUMANIST",
         "SPIRITUAL",
