@@ -1,5 +1,5 @@
 ---
-title: Data Investigation
+title: Explore Data and Featurize Patient Medical Histories
 date: "`r Sys.Date()`"
 authors: 
   - "Lorzena Bartu"
@@ -48,7 +48,15 @@ library(cowplot)
 library(patchwork)
 ```
 
-## Load Data
+## Dataset
+
+The dataset is for patients part of the Mt. Sinai Millions (MSM) cohort, for each patient we have some demographic information and their "medical history".
+The medical history is the list of ICD codes (specifiyng diagnoses) assigned to a patient by a doctor during a hospital visit for all recorded vists for that patient. So for every visit recorded we have the set of ICD codes assigned. 
+We will turn this long-form medical history into a set of descriptive features for each patient that are better suited to linear modelling where patients are independent data points.
+We also use the medical history to define the outcome we are studying for each patient and whether they experience SI, Broad SA or Narrow SA.
+
+## Plot Patient Demographics
+
 Load clean demographics data
 ```{r load_data}
 # all_combined_data <- load_all_combined_data(force_redo=FALSE)
@@ -157,11 +165,7 @@ demographics_df %>%
     theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1))
 ```
 
-## Featurizing Medical history
-
-We have the history of when which ICD codes were assigned to each patient, so we can featurize this time series to get the following sets of values per patient.
-
-### Defining patient outcomes 
+## Defining patient outcomes 
 
 For every patinent we want to create a discrete output column that specifies what experience (if any) the patient had with Suicidal Ideation or Actions.
 We have 3 lists of ICD codes, where if a patient has been assigned a code, they have the outcome for Ideation (SI), Broad Action (Broad SA) and Narrow Action (Narrow SA), and "control" if they dont match any codes across all lists.  
@@ -187,6 +191,10 @@ Plots
 print("TODO")
 ```
 
+## Featurizing Medical history
+
+We have the history of when which ICD codes were assigned to each patient, so we can featurize this time series to get the following sets of values per patient.
+
 ### Capture "Shape" of History
 
 Now we can add features derived from each patients medical history. 
@@ -210,3 +218,5 @@ From such a table we can compute the following features and what they may repres
 - can compute a cumulative distribution over time i.e. number total codes assigned & number unique codes assigned
 - burstiness: did the patient have a single encounter where they gained lots of codes? i.e. big medical change?
 - 
+
+### Plotting History "shape" features

@@ -315,10 +315,14 @@ load_ICD_Phenotype_Mappings <- function(){
     tribble(
         ~patient_outcome, ~ICD_code_list,
         "SI",             SI_codes,
-        "Narrow SA",      narrow_SA_codes,
-        "Broad SA",       broad_SA_codes,
-        "Alcohol UD",     alcohol_UD_codes,
-        "Substance UD",   substance_UD_codes
+        "Narrow_SA",      narrow_SA_codes,
+        "Broad_SA",       broad_SA_codes,
+        "Alcohol_UD",     alcohol_UD_codes,
+        "Substance_UD",   substance_UD_codes
+        # "Narrow SA",      narrow_SA_codes,
+        # "Broad SA",       broad_SA_codes,
+        # "Alcohol UD",     alcohol_UD_codes,
+        # "Substance UD",   substance_UD_codes
     )
 }
 
@@ -329,7 +333,6 @@ compute_patient_outcomes <- function(
     # First compute all binary phenotypes for all pre-specifed ICD codes
     history_start <-  min(patient_codes$encounter_date)
     history_length <- time_length(max(patient_codes$encounter_date) - history_start, unit='seconds')
-    # history_start; history_length
     patient_codes %>%
     # only keep codes asssigned to patient AND defining a phenotype of interest
     left_join(
@@ -383,36 +386,41 @@ summarize_patient_history <- function(
         add_count(ICD_code) %>% 
         arrange(desc(n)) %>% 
         summarize(
-            n_codes=n(),
+            n_total_codes=n(),
             n_unique_codes=n_distinct(ICD_code),
             n_visits=n_distinct(encounter_date),
             history_length=
                 difftime(max(encounter_date), min(encounter_date))  %>%
                 time_length(unit='days')
         ) %>%
-        mutate(freq_ICD=n_codes / history_length)
+        mutate(
+            mean_total_codes=n_total_codes / n_visits,
+            mean_unique_codes=n_unique_codes / n_visits,
+            freq_codes=n_total_codes / history_length,
+            freq_unique_codes=n_unique_codes / history_length
+        )
     # Compute cumulative code distrivutions over time
     codes_cummulative_df <- 
         patient_codes %>%
         select(ICD_code, encounter_date) %>% 
-        nest(ICD_codes=c(ICD_code)) %>% 
+        # nest all codes, so 1 row per date + list of assigned codes on thta date
+        nest(encounter_codes=c(ICD_code)) %>% 
         arrange(encounter_date) %>% 
         mutate(
             cumulative_total_codes=
                 accumulate(
-                    ICD_codes,
-                    # \(so_far, current) unlist(c(so_far, current))
+                    encounter_codes,
                     \(so_far, current) bind_rows(so_far, current) 
                 ),
             cumulative_unique_codes=
                 accumulate(
-                    ICD_codes,
+                    encounter_codes,
                     \(so_far, current) bind_rows(so_far, current) %>% distinct()
                 )
         ) %>% 
         mutate(
             across( 
-                c(ICD_codes, starts_with('cumulative_')), 
+                ends_with('_codes'), 
                 purrr::map_int,
                 nrow
             )
@@ -428,7 +436,7 @@ summarize_patient_history <- function(
     # history_features_df
     # patient_outcomes_binary_df
     bind_cols(
-        # history_shape_features_df,
+        history_shape_features_df,
         history_features_df
     ) %>%
     cross_join(patient_outcomes_binary_df)
