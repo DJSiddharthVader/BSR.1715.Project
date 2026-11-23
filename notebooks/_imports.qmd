@@ -1,0 +1,21 @@
+Set notebook options
+```{r knitr_options}
+#| context: setup
+#| include: false
+
+library(knitr)
+knitr::opts_chunk$set(
+    warning=FALSE,
+    # dev=c('png', 'pdf', 'svg'),
+    dev=c('png'),
+    dpi=300
+)
+```
+Load dependencies
+```{r load_dependencies}
+#| context: setup
+#| include: false
+
+library(here)
+source(here('scripts', 'basic_imports.R'))
+```

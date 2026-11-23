@@ -1,0 +1,19 @@
+---
+title: Bootstrap Resampling For Class Imbalance
+date: "`r Sys.Date()`"
+metadata-files:
+    - _report_options.yml
+---
+
+{{< include _imports.qmd >}} 
+
+## Bootstrapping
+
+Ok, case/controls are very imbalanced, so can we apply bootstrapping, so for 10K bootstraps:
+
+1. bootstrap pick ALL cases + same number of random controls
+2. Run basic glm as specified above
+3. tidy into neat tabel
+
+Now look at bootstrap distributions and compute empirical p-values from unbalanced results above
+

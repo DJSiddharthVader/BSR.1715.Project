@@ -1,0 +1,51 @@
+---
+title:  Featurizing Full Medical History for Modelling
+date: "`r Sys.Date()`"
+metadata-files:
+    - _report_options.yml
+---
+
+{{< include _imports.qmd >}} 
+
+## Featurizing Medical history
+
+We have the history of when which ICD codes were assigned to each patient, so we can featurize this time series to get the following sets of values per patient.
+
+### Describe Basic Feature of Medical History
+
+Now we can add features derived from each patients medical history. 
+Here the "history" is every time they were assigned a unique ICD code on a specific date,
+so a 2-column tibble with the columns `encounter_date` and `ICD_code`. 
+From such a table we can compute the following features and what they may represent to our models
+
+| Feature Name | Definition | Interpretation |
+|--------------|:-----------|:---------------|
+ `n_codes` | total codes assigned (unique date + code) ||
+ `n_unique_codes` | unique codes assigned |  how many conditions does the patient have? health "prior"? |
+ `history_length` | time between first and most recent visit | extensive medical history? many conditions? access to healthcare? |
+ `n_visits` |  number of unique visits recorded | same as length, but maybe better |
+ `most_common_code` |  which code was assigned the most frequently to the patient | their longest known condition? (appears on multiple visits) |
+ `most_common_code.freq` | how frequently the most common code was assigned out of all codes assigned | how long they've known about theyre longest known condition (# of visits |
+`code_frequency` | n_codes / history_length | |
+
+: How we featurize each patient's medical history {tbl-colwidth="[10,40,50]"}
+
+
+- can compute a cumulative distribution over time i.e. number total codes assigned & number unique codes assigned
+- burstiness: did the patient have a single encounter where they gained lots of codes? i.e. big medical change?
+- 
+
+### Capture "Shape" of Medical History
+
+See notes [here](https://docs.google.com/document/d/1cLN_i3Gwpaw1JAnrSIQBvaNd5htuucYVKfBv-OQY-Oc/edit?usp=sharing)
+
+### Plotting History-derived Features
+
+Now we can load the shape features derived from each patient's code history across all patients
+```{r load_history_shape_features}
+print("TODO")
+```
+Plots
+```{r plot_history_shape_features}
+print("TODO")
+```

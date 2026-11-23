@@ -1,0 +1,32 @@
+---
+title: Linear Modelling across different Outcomes
+date: "`r Sys.Date()`"
+metadata-files:
+    - _report_options.yml
+---
+
+{{< include _imports.qmd >}} 
+
+## Basic Model Setup
+
+For every patient we have their 
+
+1. demographic features :
+   - `current_age`
+   - `gender`
+   - `ethnicity`
+   - `religiosity`
+   - `marriage status`
+4. Other phenotypes
+   - alcohol use disorder
+   - substance use disorders
+2. Patient Outcome, whether they were coded for 
+   - SI 
+   - Broad SA 
+   - Narrow SA
+
+## Parameter Comparisons
+
+Most basic thing, run a glm with all features and look at betas + p-values + variance contributions for each model.
+Basically just `summary(glm(outcome ~ demographics + has_alcohol_UD + has_substance_UD + history_features))`
+
