@@ -43,12 +43,14 @@ Load dependencies
 
 library(here)
 source(here('scripts', 'basic_imports.R'))
+library(scales)
+library(cowplot)
+library(patchwork)
 ```
 
-## Plot Demographic Distributions
-
+## Load Data
 Load clean demographics data
-```{r load_demographic_data}
+```{r load_data}
 # all_combined_data <- load_all_combined_data(force_redo=FALSE)
 demographics_df <- 
     clean_demographics_data() %>% 
