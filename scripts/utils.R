@@ -8,6 +8,7 @@ suppressPackageStartupMessages({
     library(tictoc)
     library(glue)
     library(forcats)
+    library(lubridate)
     library(furrr)
 })
 
@@ -282,58 +283,218 @@ load_problems_data <- function(force_redo=FALSE, ...) {
 ############################################################
 # Handle Case Counting per patient
 ############################################################
-load_SA_codes <- function(){
-    si_codes <- 
-        fread(SI_CODES_FILE, header=FALSE)[,.(ICD_code=V1)]
-    si_codes$ICD_group <- "si"
-    na_sa_codes <- 
-        fread(NARROW_SA_CODES_FILE, header=FALSE)[,.(ICD_code=V1)]
-    na_sa_codes$ICD_group <- "na_sa"
-    b_sa_codes <- 
-        fread(BROAD_SA_CODES_FILE, header = FALSE)[,.(ICD_code=V1)] %>%
-        filter(ICD_code %notin% unique(na_sa_codes$ICD_code))
-    b_sa_codes$ICD_group <- "b_sa"
-
-    rbind(si_codes, na_sa_codes, b_sa_codes)
+load_ICD_Phenotype_Mappings <- function(){
+    SI_codes <- 
+        SI_CODES_FILE %>%
+        read_tsv(show_col_types=FALSE, col_names=FALSE) %>% pull(X1) %>% unique()
+    narrow_SA_codes <- 
+        NARROW_SA_CODES_FILE %>% 
+        read_tsv(show_col_types=FALSE, col_names=FALSE) %>% pull(X1) %>% unique()
+    broad_SA_codes <- 
+        BROAD_SA_CODES_FILE %>% 
+        read_tsv(show_col_types=FALSE, col_names=FALSE) %>% 
+        filter(X1 %notin% SI_codes) %>% pull(X1) %>% unique()
+    # ICD code definitions for use disorders
+    # https://codingclarified.com/icd-10-coding-for-substance-use-disorders/
+    # F10: Alcohol-related disorders
+    # F10.10 – Alcohol use disorder, mild
+    # F10.20 – Alcohol use disorder, moderate
+    # F10.21 – Alcohol use disorder, severe
+    # F10.239 – Alcohol use disorder with withdrawal, unspecified
+    alcohol_UD_codes  <- c('F10', 'F10.10', 'F10.20', 'F10.21', 'F10.239')
+    # F11: Opioid-related disorders
+    # F14: Cocaine-related disorders
+    # F15: Other stimulant-related disorders
+    # F16: Hallucinogen-related disorders
+    # F18: Inhalant-related disorders
+    # F11.21 – Opioid dependence with withdrawal
+    substance_UD_codes <- c('F11', 'F14', 'F15', 'F16', 'F18', 'F11.21')
+    # tibble, every row is a possible patient outcome
+    # a patient has an outcome if they match >= 1 code from each corresponding list
+    # can be unnested for joining/mapping to patient ICD frequencies
+    tribble(
+        ~patient_outcome, ~ICD_code_list,
+        "SI",             SI_codes,
+        "Narrow SA",      narrow_SA_codes,
+        "Broad SA",       broad_SA_codes,
+        "Alcohol UD",     alcohol_UD_codes,
+        "Substance UD",   substance_UD_codes
+    )
 }
 
-combine_all_data <- function(){
-    # encounters_df <- load_encounter_data()
-    # problems_df <- load_problems_data()
-    # medical_history_df <- load_medical_history()
-    encounters_df <- clean_encounter_diagnosis()
-    problems_df <- clean_problem_list()
-    medical_history_df <- clean_medical_history()
-    include_codes <- load_SA_codes()
-    bind_rows(
-        encounters_df,
-        problems_df,
-        medical_history_df
-    ) %>% 
+compute_patient_outcomes <- function(
+    patient_codes,
+    phenotype_code_mappings_df,
+    ...){
+    # First compute all binary phenotypes for all pre-specifed ICD codes
+    history_start <-  min(patient_codes$encounter_date)
+    history_length <- time_length(max(patient_codes$encounter_date) - history_start, unit='seconds')
+    # history_start; history_length
+    patient_codes %>%
+    # only keep codes asssigned to patient AND defining a phenotype of interest
     left_join(
-        clean_demographics_data(),
-        by='FID'
+        phenotype_code_mappings_df %>% mutate(patient_outcome=factor(patient_outcome)),
+        by=join_by(ICD_code == ICD_code_list)
     ) %>% 
+    # count(patient_outcome) %>% # how many code assignments per outcome
+    # # get earliest point where a phenotype term was found
+    # then compute where that term is in their medical history i.e. 
+    # (diagnosis_date - history_start) / history_length to put in [0,1] range, 0 == early 1 == late
+    group_by(patient_outcome) %>% 
+    summarize(
+        n=n(),
+        earliest_diagnosis=
+            time_length(-1 + min(encounter_date) - history_start, unit='seconds') / history_length
+    ) %>%  
+    # the -1 offset tells us when it is null vs the diagnosis is actually on the first day
+    mutate(earliest_diagnosis=ifelse(earliest_diagnosis < 0, NA, earliest_diagnosis)) %>% 
+    complete(
+        patient_outcome,
+        fill=list(n=0)
+    ) %>% # make outcomes with 0 matching codes explicit
+    filter(!is.na(patient_outcome)) %>%   # remove empty case
+    # binarize and pivot to M binary columns for all M phenotypes
+    mutate(
+        case_control_status=
+            ifelse(n > 0, 'case', 'control') %>% 
+            factor(levels=c('control', 'case'))
+    ) %>% 
+    select(
+        patient_outcome,
+        earliest_diagnosis,
+        case_control_status
+    )
+}
+
+summarize_patient_history <- function(
+    patient_codes,
+    phenotype_code_mappings_df,
+    ...){
+    # patient_codes <- tmp$patient_codes[[1]]
+    # Get binary phenotypes for patient i.e. have they ever had a code for SI, SA, etc.
+    patient_outcomes_binary_df <- 
+        compute_patient_outcomes(
+            patient_codes,
+            phenotype_code_mappings_df
+        )
+    # Compute some descriptive features from their total history of code assignments
+    history_features_df <- 
+        patient_codes %>%
+        add_count(ICD_code) %>% 
+        arrange(desc(n)) %>% 
+        summarize(
+            n_codes=n(),
+            n_unique_codes=n_distinct(ICD_code),
+            n_visits=n_distinct(encounter_date),
+            history_length=
+                difftime(max(encounter_date), min(encounter_date))  %>%
+                time_length(unit='days')
+        ) %>%
+        mutate(freq_ICD=n_codes / history_length)
+    # Compute cumulative code distrivutions over time
+    codes_cummulative_df <- 
+        patient_codes %>%
+        select(ICD_code, encounter_date) %>% 
+        nest(ICD_codes=c(ICD_code)) %>% 
+        arrange(encounter_date) %>% 
+        mutate(
+            cumulative_total_codes=
+                accumulate(
+                    ICD_codes,
+                    # \(so_far, current) unlist(c(so_far, current))
+                    \(so_far, current) bind_rows(so_far, current) 
+                ),
+            cumulative_unique_codes=
+                accumulate(
+                    ICD_codes,
+                    \(so_far, current) bind_rows(so_far, current) %>% distinct()
+                )
+        ) %>% 
+        mutate(
+            across( 
+                c(ICD_codes, starts_with('cumulative_')), 
+                purrr::map_int,
+                nrow
+            )
+        )
+        # at each timepoint we have the total/unique number of codes assigned
+    # Now compute "shape"/"behaviour" features from code history
+    history_shape_features_df <- 
+        codes_cummulative_df %>%
+            ???
+    # reutrn everything as a single row
+    # codes_cummulative_df
+    # history_shape_features_df
+    # history_features_df
+    # patient_outcomes_binary_df
+    bind_cols(
+        # history_shape_features_df,
+        history_features_df
+    ) %>%
+    cross_join(patient_outcomes_binary_df)
+}
+
+summarize_all_patient_histories <- function(){
+    # map ICD codes to relvant phenotypes
+    phenotype_code_mappings_df <- load_ICD_Phenotype_Mappings() %>% unnest(ICD_code_list)
+    # get all patient-ICD code assignments from diagnoses/history
+    bind_rows(
+        # load_encounter_data(),
+        # load_problems_data(),
+        # load_medical_history()
+        clean_encounter_diagnosis(),
+        clean_problem_list(),
+        clean_medical_history()
+    ) %>%  
+    # 91M total code assignments
     mutate(ICD_code=trimws(as.character(ICD_code))) %>%
+    mutate(encounter_date=lubridate::mdy(encounter_date)) %>% 
+    # mutate(encounter_date=as.Date(encounter_date)) %>% 
+    # Remove empty/duplicate entries of ICD codes 
+    filter(!is.na(ICD_code), ICD_code != "") %>%
     distinct(
-        FID,
         ICD_code,
+        FID,
         encounter_date,
         .keep_all=TRUE
-    ) %>% 
-    group_by(FID) %>%
+    ) %>%  
+    select(-c(data_src)) %>% 
+    # 82M unique code assignments across all patients and dates after filtering
+    # for each patient, collapse all code assignment into nested tibbles, 1 row per patient
+    nest(patient_codes=c(ICD_code, dx_code_type, dx_name, encounter_date)) %>% 
+        {.} -> tmp; tmp 
+        tmp$patient_codes[[1]]
+        tmp %>% head(3) %>% 
+    # for every patient, see which relevant phenotypes it has
+    # and compute some features from a patients code history
     mutate(
-        has_included=
-            ifelse(
-                ICD_code %in% unique(include_codes$ICD_code),
-                "case",
-                "control"
+        patient_code_stats=
+            future_pmap(
+                .l=.,
+                .f=summarize_patient_history,
+                phenotype_code_mappings_df=phenotype_code_mappings_df,
+                .progress=TRUE
             )
     ) %>%
-    ungroup()
+    select(-c(patient_codes)) %>%
+    unnest(patient_code_stats) %>% 
+    # Define alternate outcome encodings from lorenza original logic
+    mutate(
+        si_icd = case_when( si > 0 ~ 1),
+        nsa_icd = case_when( na_sa > 0 ~ 1),
+        any_icd = 1, 
+        any_sui = case_when( na_sa > 0 | b_sa > 0 ~ 1), 
+        any_sa = case_when( na_sa > 0 ~ 1 ),
+        any_si = case_when( si > 0 ~ 1),
+        any_si_cleaned_controls = case_when( any_si > 0 ~ 1, b_sa > 0 | any_sa > 0 ~ -9 ), 
+        any_sa_cleaned_controls = case_when( na_sa > 0 ~ 1, si > 0 ~ -9),
+        any_si_only_cleaned_controls = case_when( si > 0 & b_sa == 0 & na_sa == 0 ~ 1, b_sa != 0 | na_sa != 0 ~ -9),
+        # any_nsa = case_when(na_sa > 0 ~ 1)
+    ) %>%
+    mutate(across(everything(), ~replace_na(.x, 0)))
 }
 
-load_all_combined_data <- function(force_redo=FALSE, ...){
+load_all_summarized_patient_histories <- function(force_redo=FALSE, ...){
     check_cached_results(
         results_file=CLEAN_ALL_DATA_FILE,
         force_redo=force_redo,
