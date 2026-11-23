@@ -1,5 +1,15 @@
 # BSR.1715.Project
 
+## Results
+
+The walkthrough of our approach to cleaning, featurizing, modeling and interpreting the patient data is detailed in the following Quarto reports
+
+1. [Demograhics and Outcomes](https://html-preview.github.io/?url=https://github.com/DJSiddharthVader/BSR.1715.Project/tree/main/notebooks/01_Patient.Outcomes.html)
+1. [Featurizing Medical History](https://html-preview.github.io/?url=https://github.com/DJSiddharthVader/BSR.1715.Project/tree/main/notebooks/02_Featurizing.Medical.History.html)
+1. [Linear Modelling Approaches](https://html-preview.github.io/?url=https://github.com/DJSiddharthVader/BSR.1715.Project/tree/main/notebooks/03_Linear.Modelling.html)
+1. [Bootstrapping](https://html-preview.github.io/?url=https://github.com/DJSiddharthVader/BSR.1715.Project/tree/main/notebooks/04_Bootstrapping.html)
+
+
 ## Reproducibility
 
 We are using [rv](https://a2-ai.github.io/rv-docs/intro/installation/) to manage R dependencies, including the following files in the repo

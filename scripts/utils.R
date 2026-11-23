@@ -87,7 +87,7 @@ check_cached_results <- function(
 }
 
 ############################################################
-# Clean up individual fiels
+# Load patient demographics + histories
 ############################################################
 clean_demographics_data <- function() {
     DEMOGRAPHICS_FILE %>%
@@ -197,15 +197,6 @@ clean_encounter_diagnosis <- function() {
     distinct() 
 }
 
-load_encounter_data <- function(force_redo=FALSE, ...) {
-    check_cached_results(
-        results_file=CLEAN_ENCOUNTER_DATA_FILE,
-        force_redo=force_redo,
-        results_fnc=clean_encounter_diagnosis,
-        ...
-    )
-}
-
 clean_medical_history <- function() {
     MEDICAL_HISTORY_FILE %>% 
     read_delim(
@@ -239,15 +230,6 @@ clean_medical_history <- function() {
     add_column(data_src="MedicalHistory")
 }
 
-load_medical_history <- function(force_redo=FALSE, ...) {
-    check_cached_results(
-        results_file=CLEAN_MEDICAL_HISTORY_DATA_FILE,
-        force_redo=force_redo,
-        results_fnc=clean_medical_history,
-        ...
-    )
-}
-
 clean_problem_list <- function(){
     PROBLEMS_FILE %>% 
     read_delim(
@@ -271,17 +253,10 @@ clean_problem_list <- function(){
     distinct()
 }
 
-load_problems_data <- function(force_redo=FALSE, ...) {
-    check_cached_results(
-        results_file=CLEAN_PROBLEM_LIST_DATA_FILE,
-        force_redo=force_redo,
-        results_fnc=clean_problem_list,
-        ...
-    )
 }
 
 ############################################################
-# Handle Case Counting per patient
+# Compute patient outcomes
 ############################################################
 load_ICD_Phenotype_Mappings <- function(){
     SI_codes <- 
@@ -379,6 +354,15 @@ summarize_patient_history <- function(
         compute_patient_outcomes(
             patient_codes,
             phenotype_code_mappings_df
+load_all_patient_outcomes <- function(force_redo=FALSE, ...){
+    check_cached_results(
+        results_file=CLEAN_OUTCOMES_DATA_FILE,
+        force_redo=force_redo,
+        results_fnc=compute_all_patient_outcomes,
+        ...
+    )
+}
+
         )
     # Compute some descriptive features from their total history of code assignments
     history_features_df <- 
@@ -502,11 +486,11 @@ summarize_all_patient_histories <- function(){
     mutate(across(everything(), ~replace_na(.x, 0)))
 }
 
-load_all_summarized_patient_histories <- function(force_redo=FALSE, ...){
+load_all_patient_history_features <- function(force_redo=FALSE, ...){
     check_cached_results(
-        results_file=CLEAN_ALL_DATA_FILE,
+        results_file=CLEAN_FEATURIZED_HISTORY_DATA_FILE,
         force_redo=force_redo,
-        results_fnc=combine_all_data,
+        results_fnc=featurize_all_patient_histories,
         ...
     )
 }

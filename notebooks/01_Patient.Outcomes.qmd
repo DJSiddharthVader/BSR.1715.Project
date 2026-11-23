@@ -20,7 +20,7 @@ Load clean demographics data
 ```{r load_data}
 # all_combined_data <- load_all_combined_data(force_redo=FALSE)
 demographics_df <- 
-    clean_demographics_data() %>% 
+    load_demographics_data(force_redo=FALSE) %>% 
     # turn columns into neat factors, leaving NAs as NAs
     factorize_demographics_data() %>% 
     # remove all patients without complete demographic records
@@ -143,7 +143,7 @@ We can also assign other phenotypes, such as Alcohol Use Disorder and Substance 
 
 Now we can load the outcomes and plot their frequencies against our demogrpahics and our co-morbidities
 ```{r load_outcome_data}
-print("TODO")
+all_patient_outcomes_df <- load_all_patient_outcomes(force_redo=FALSE)
 ```
 Plots
 ```{r plot_outcome_frequencies}

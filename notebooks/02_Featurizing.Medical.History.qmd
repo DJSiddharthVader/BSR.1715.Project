@@ -43,7 +43,7 @@ See notes [here](https://docs.google.com/document/d/1cLN_i3Gwpaw1JAnrSIQBvaNd5ht
 
 Now we can load the shape features derived from each patient's code history across all patients
 ```{r load_history_shape_features}
-print("TODO")
+all_medical_history_shape_features_df <- load_all_patient_history_features(force_redo=FALSE)
 ```
 Plots
 ```{r plot_history_shape_features}
