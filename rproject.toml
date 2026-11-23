@@ -29,4 +29,5 @@ dependencies = [
     "furrr",
     "GGally",
     "quarto",
+    "lubridate",
 ]

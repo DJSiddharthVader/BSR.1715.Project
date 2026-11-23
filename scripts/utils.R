@@ -177,6 +177,7 @@ load_demographics_data <- function(force_redo=FALSE, ...) {
 clean_encounter_diagnosis <- function() {
     ENCOUNTER_DIAGNOSIS_FILE %>% 
     read_delim(
+        show_col_types=FALSE,
         delim='|',
         col_select=
             c(
@@ -207,6 +208,7 @@ load_encounter_data <- function(force_redo=FALSE, ...) {
 clean_medical_history <- function() {
     MEDICAL_HISTORY_FILE %>% 
     read_delim(
+        show_col_types=FALSE,
         delim='|',
         col_select=
             c(
@@ -221,14 +223,19 @@ clean_medical_history <- function() {
         'FID'=sample_name,
         'dx_name'=MEDICAL_HX_DESCRIPTION
     ) %>%
-    pivot_longer(c(current_icd9_list, current_icd10_list), 
-                 names_pattern = "current_(icd\\d+)_list", 
-                 names_to = "dx_code_type", values_to = "ICD_code") %>%
+    # pivot all codes to tidy format
+    pivot_longer(
+        c(current_icd9_list, current_icd10_list), 
+        names_pattern = "current_(icd\\d+)_list", 
+        names_to = "dx_code_type",
+        values_to = "ICD_code"
+    ) %>%
     separate_longer_delim(ICD_code, delim = ",") %>%
-    mutate(ICD_code = str_trim(ICD_code), 
-           data_src = "MedHist") %>%
+    mutate(ICD_code = str_trim(ICD_code)) %>% 
+    # only keep non-empty code assignments
     filter(!is.na(ICD_code), ICD_code != "") %>%
-    distinct()
+    distinct() %>%
+    add_column(data_src="MedicalHistory")
 }
 
 load_medical_history <- function(force_redo=FALSE, ...) {
@@ -243,6 +250,7 @@ load_medical_history <- function(force_redo=FALSE, ...) {
 clean_problem_list <- function(){
     PROBLEMS_FILE %>% 
     read_delim(
+        show_col_types=FALSE,
         delim='|',
         col_select=
             c(
@@ -272,7 +280,7 @@ load_problems_data <- function(force_redo=FALSE, ...) {
 }
 
 ############################################################
-# Combine data sources together
+# Handle Case Counting per patient
 ############################################################
 load_SA_codes <- function(){
     si_codes <- 
@@ -332,86 +340,5 @@ load_all_combined_data <- function(force_redo=FALSE, ...){
         results_fnc=combine_all_data,
         ...
     )
-}
-
-dedup_cases <- function(
-    all_combined_data,
-    include_codes){
-    controls <- 
-        all_combined_data %>% 
-        filter(status == "control")
-    case_counts <-
-        all_combined_data %>% 
-        filter(
-            status == "case",
-            ICD_code %in% unique(include_codes$ICD_code)
-        ) %>%
-        # count total how many times each patient was assigned each ICD code
-        merge(include_codes, by="ICD_code") %>% 
-        group_by(ICD_group) %>%
-        count(FID, ICD_code) %>%
-        # Reshape so one row per FID, columns are ICD codes, 
-        pivot_wider(
-            names_from = ICD_code,
-            values_from = n,
-            values_fill = 0
-        ) %>%
-        mutate(SUM=rowSums(across(-FID))) %>%
-        ungroup() %>% 
-        select(FID, ICD_group, SUM) %>%
-        pivot_wider(
-            names_from = ICD_group,
-            values_from = SUM,
-            values_fill = 0
-        ) %>% 
-        mutate(
-            si_icd = case_when( si > 0 ~ 1),
-            nsa_icd = case_when( na_sa > 0 ~ 1),
-            any_icd = 1, 
-            any_sui = case_when( na_sa > 0 | b_sa > 0 ~ 1), 
-            any_sa = case_when( na_sa > 0 ~ 1 ),
-            any_si = case_when( si > 0 ~ 1),
-            any_si_cleaned_controls = case_when( any_si > 0 ~ 1, b_sa > 0 | any_sa > 0 ~ -9 ), 
-            any_sa_cleaned_controls = case_when( na_sa > 0 ~ 1, si > 0 ~ -9),
-            any_si_only_cleaned_controls = case_when( si > 0 & b_sa == 0 & na_sa == 0 ~ 1, b_sa != 0 | na_sa != 0 ~ -9),
-            # any_nsa = case_when(na_sa > 0 ~ 1)
-        ) %>%
-        mutate(across(everything(), ~replace_na(.x, 0)))
-    # return cases + controls
-    controls %>% select(FID) %>% distinct() %>% 
-    bind_rows(case_counts) %>%
-    mutate(across(everything(), ~ replace(., is.na(.), 0)))
-}
-
-############################################################
-# Compare 2024 vs 2026 data
-############################################################
-load_all_2024_data <- function(){
-    fread(
-        "/sc/arion/projects/mscic1/mullins_lab_biome_projs/cnv_sui/final_analytic_set_all_notes_20240515_subjectids.txt", 
-        select= 
-            c(
-                "SUBJECT_ID",
-                "si_icd",
-                "nsa_icd",
-                "any_icd", 
-                "predSI",
-                "predSB",
-                "nlp_si_sb",
-                "any_sui", 
-                "any_si",
-                "any_sa",
-                "in_notes",
-                "any_si_cleaned_controls",
-                "any_sa_cleaned_controls",
-                "any_si_only_cleaned_controls",
-                "genetically_determined",
-                "sex",
-                "CURRENT_AGE_2024"
-            )
-    ) %>%
-  rename('FID'=SUBJECT_ID) 
-
-
 }
 

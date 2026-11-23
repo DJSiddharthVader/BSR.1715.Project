@@ -1,4 +1,14 @@
 ############################################################
+# Dependencies
+############################################################
+suppressPackageStartupMessages({
+    library(GGally)
+    library(scales)
+    library(cowplot)
+    library(patchwork)
+})
+
+############################################################
 # Utilities
 ############################################################
 factorize_and_translate <- function(values_to_factorize, translation_key){

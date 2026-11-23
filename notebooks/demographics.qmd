@@ -1,5 +1,5 @@
 ---
-title: Demographics Information 
+title: Data Investigation
 date: "`r Sys.Date()`"
 authors: 
   - "Lorzena Bartu"
@@ -19,7 +19,6 @@ format:
         theme:
             dark: darkly
             light: flatly
-
 ---
 
 ## Dependencies
@@ -44,14 +43,12 @@ Load dependencies
 
 library(here)
 source(here('scripts', 'basic_imports.R'))
-library(scales)
-library(cowplot)
-library(patchwork)
 ```
 
-## Load Data
+## Plot Demographic Distributions
+
 Load clean demographics data
-```{r load_data}
+```{r load_demographic_data}
 # all_combined_data <- load_all_combined_data(force_redo=FALSE)
 demographics_df <- 
     clean_demographics_data() %>% 
@@ -70,14 +67,11 @@ demographics_df <-
         is_married
     )
 ```
-
-## Plot Stuff 
-
 Plot individual distributions for all `r nrow(demographics_df)` patients with no missing data.
 ```{r plot_demographics, fig.dims=c(6, 8)}
-make_single_ggbar <- function(col_name){
+make_single_ggbar <- function(col_name, plot_df=demographics_df){
     plot.obj <- 
-        demographics_df %>% 
+        plot_df %>% 
         select(!!sym(col_name)) %>%
         count(!!sym(col_name)) %>% 
         add_column(feature=col_name) %>%  # dummy x-axis
@@ -147,7 +141,7 @@ DEFG
 ```
 Plot crosstabs of everything with w/ Gender
 ```{r demographic_pair_plots_by_gender}
-#| output: false
+#| warnings: false
 
 demographics_df %>%
     select(-FID) %>%
