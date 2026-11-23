@@ -161,3 +161,56 @@ demographics_df %>%
     theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1))
 ```
 
+## Featurizing Medical history
+
+We have the history of when which ICD codes were assigned to each patient, so we can featurize this time series to get the following sets of values per patient.
+
+### Defining patient outcomes 
+
+For every patinent we want to create a discrete output column that specifies what experience (if any) the patient had with Suicidal Ideation or Actions.
+We have 3 lists of ICD codes, where if a patient has been assigned a code, they have the outcome for Ideation (SI), Broad Action (Broad SA) and Narrow Action (Narrow SA), and "control" if they dont match any codes across all lists.  
+Using these lists of codes
+Using the assigned ICD codes we can define these discrete columns in several other ways as  follows and test for differences in model construction. 
+
+  - `Full`:  {"None", "SI", "Broad SA", "Narrow SA"}
+  - `SI Only`:  {"None", "SI"}
+  - `Any SI`:  {"None", "SI", "Broad SA", "Narrow SA"}
+  - `Any SA`:  {"None", "Broad SA", "Narrow SA"}
+
+*Note* that all encodings use the same set of samples, just changing the case/control labels.
+We can also assign other phenotypes, such as Alcohol Use Disorder and Substance Use Disorder from the ICD codes in the same way.
+
+### Plot Case/Control Frequencies
+
+Now we can load the outcomes and plot their frequencies against our demogrpahics and our co-morbidities
+```{r load_outcome_data}
+print("TODO")
+```
+Plots
+```{r plot_outcome_frequencies}
+print("TODO")
+```
+
+### Capture "Shape" of History
+
+Now we can add features derived from each patients medical history. 
+Here the "history" is every time they were assigned a unique ICD code on a specific date,
+so a 2-column tibble with the columns `encounter_date` and `ICD_code`. 
+From such a table we can compute the following features and what they may represent to our models
+
+| Feature Name | Definition | Interpretation |
+|--------------|:-----------|:---------------|
+ `n_codes` | total codes assigned (unique date + code) ||
+ `n_unique_codes` | unique codes assigned |  how many conditions does the patient have? health "prior"? |
+ `history_length` | time between first and most recent visit | extensive medical history? many conditions? access to healthcare? |
+ `n_visits` |  number of unique visits recorded | same as length, but maybe better |
+ `most_common_code` |  which code was assigned the most frequently to the patient | their longest known condition? (appears on multiple visits) |
+ `most_common_code.freq` | how frequently the most common code was assigned out of all codes assigned | how long they've known about theyre longest known condition (# of visits |
+`code_frequency` | n_codes / history_length | |
+
+: How we featurize each patient's medical history {tbl-colwidth="[10,40,50]"}
+
+
+- can compute a cumulative distribution over time i.e. number total codes assigned & number unique codes assigned
+- burstiness: did the patient have a single encounter where they gained lots of codes? i.e. big medical change?
+- 
