@@ -1,0 +1,43 @@
+project:
+  type: website
+  execute-dir: project
+  output-dir: reports
+  render:
+    - index.qmd
+    - notebooks/*.qmd
+
+website:
+  search: true
+  navbar:
+    left:
+      - href: index.qmd
+        text: Home
+      - href: notebooks/01_Patient.Outcomes.qmd
+        text: Patient Demographics & Outcomes
+      - href: notebooks/02_Featurizing.Medical.History.qmd
+        text: Featurizing Patient Histories
+      - href: notebooks/03_Linear.Modelling.qmd
+        text: Linear Modelling of Patient Outcomes
+      - href: notebooks/04_Bootstrapping.qmd
+        text: Bootstrapping for Class Imbalance
+
+format:
+  html:
+    lightbox: true
+    df-print: paged
+    embed-resources: true
+    page-layout: full
+    toc: true
+    number_sections: true
+    code-fold: true
+    smooth-scroll: true
+    fig-width: 9
+    fig-height: 5
+    theme:
+      dark: darkly
+      light: flatly
+
+knitr: 
+  opts_chunk:
+    message: false
+    warning: false

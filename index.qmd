@@ -1,0 +1,16 @@
+---
+title: "BSR 1715 Final Project"
+subtitle: "Investiagtion of Medical History & Suicidal Behaviours in the Mt. Sinai Millions Cohort"
+date: November 30 2026
+authors: 
+    - "Lorzena Bartu"
+    - "Siddharth Reed"
+---
+
+For this project we examine the Mt. Sinai Millions Cohort, investigating patients experiences with Suicidal Ideation and/or Actions.
+Here are the steps in our analysis for clean + investigating + interpreting the data:
+
+1. [Patient Demographics & Outcomes](notebooks/01_Patient.Outcomes.qmd)
+1. [Featurizing Medical History Per Patient](notebooks/02_Featurizing.Medical.History.qmd)
+1. [Linear Modelling](notebooks/03_Linear.Modelling.qmd)
+1. [Bootstrapping](notebooks/04_Bootstrapping.qmd)

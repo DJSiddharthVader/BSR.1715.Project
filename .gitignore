@@ -2,8 +2,12 @@ remote.data/
 Approved_CBIPM_Data_andor_Specimen_Request_M.pdf
 xcd-project_template.ipynb
 /msm.data
-/notebooks/*.html
-/notebooks/Rplots.pdf
+/input.data
 /results
-/.RData
-/notebooks/.RData
+Rplots.pdf
+.RData
+
+/.quarto/
+**/*.quarto_ipynb
+/notebooks/site_libs
+/reports

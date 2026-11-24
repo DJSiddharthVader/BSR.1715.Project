@@ -210,6 +210,18 @@ dependencies = [
 ]
 
 [[packages]]
+name = "cowplot"
+version = "1.2.0"
+source = { repository = "https://packagemanager.posit.co/cran/latest" }
+force_source = false
+dependencies = [
+    { name = "ggplot2", requirement = "(>= 3.5.2)" },
+    "gtable",
+    "rlang",
+    "scales",
+]
+
+[[packages]]
 name = "cpp11"
 version = "0.5.5"
 source = { repository = "https://packagemanager.posit.co/cran/latest" }
