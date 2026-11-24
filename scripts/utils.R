@@ -253,6 +253,43 @@ clean_problem_list <- function(){
     distinct()
 }
 
+clean_and_combine_all_pateint_histories <- function(){
+    # get all patient-ICD code assignments from diagnoses/history
+    bind_rows(
+        # load_encounter_data(),
+        # load_problems_data(),
+        # load_medical_history()
+        clean_encounter_diagnosis(),
+        clean_problem_list(),
+        clean_medical_history()
+    ) %>%  
+    # 91M total code assignments
+    mutate(ICD_code=trimws(as.character(ICD_code))) %>%
+    mutate(encounter_date=lubridate::mdy(encounter_date)) %>% 
+    # mutate(encounter_date=as.Date(encounter_date)) %>% 
+    # Remove empty/duplicate entries of ICD codes 
+    filter(!is.na(ICD_code), ICD_code != "") %>%
+    distinct(
+        ICD_code,
+        FID,
+        encounter_date,
+        .keep_all=TRUE
+    ) %>%  
+    # 82M unique code assignments across all patients and dates after filtering
+    select(-c(data_src))
+}
+
+load_all_patient_histories <- function(force_redo=FALSE, ...){
+    check_cached_results(
+        results_file='/sc/arion/scratch/reeds05/all_patient_histories.tsv',
+        force_redo=force_redo,
+        # force_redo=TRUE,
+        results_fnc=clean_and_combine_all_pateint_histories,
+        ...
+    ) %>% 
+    mutate(encounter_date=lubridate::ymd(encounter_date)) %>% 
+    # for each patient, collapse all code assignment into nested tibbles, 1 row per patient
+    nest(patient_codes=c(ICD_code, dx_code_type, dx_name, encounter_date))
 }
 
 ############################################################
@@ -288,7 +325,7 @@ load_ICD_Phenotype_Mappings <- function(){
     # a patient has an outcome if they match >= 1 code from each corresponding list
     # can be unnested for joining/mapping to patient ICD frequencies
     tribble(
-        ~patient_outcome, ~ICD_code_list,
+        ~outcome.type, ~ICD_code_list,
         "SI",             SI_codes,
         "Narrow_SA",      narrow_SA_codes,
         "Broad_SA",       broad_SA_codes,
@@ -298,68 +335,153 @@ load_ICD_Phenotype_Mappings <- function(){
         # "Broad SA",       broad_SA_codes,
         # "Alcohol UD",     alcohol_UD_codes,
         # "Substance UD",   substance_UD_codes
-    )
+    ) %>% 
+    mutate(outcome.type=factor(outcome.type))
 }
 
 compute_patient_outcomes <- function(
     patient_codes,
     phenotype_code_mappings_df,
     ...){
-    # First compute all binary phenotypes for all pre-specifed ICD codes
+    # patient_codes=tmp$patient_codes[[1]]; phenotype_code_mappings_df=load_ICD_Phenotype_Mappings() %>% unnest(ICD_code_list)
     history_start <-  min(patient_codes$encounter_date)
     history_length <- time_length(max(patient_codes$encounter_date) - history_start, unit='seconds')
+    # Compute all binary phenotypes for all pre-specifed ICD codes
     patient_codes %>%
     # only keep codes asssigned to patient AND defining a phenotype of interest
     left_join(
-        phenotype_code_mappings_df %>% mutate(patient_outcome=factor(patient_outcome)),
+        phenotype_code_mappings_df,
         by=join_by(ICD_code == ICD_code_list)
     ) %>% 
-    # count(patient_outcome) %>% # how many code assignments per outcome
-    # # get earliest point where a phenotype term was found
-    # then compute where that term is in their medical history i.e. 
-    # (diagnosis_date - history_start) / history_length to put in [0,1] range, 0 == early 1 == late
-    group_by(patient_outcome) %>% 
+    group_by(outcome.type) %>% 
     summarize(
-        n=n(),
+        # outcome "severity"/longevity?
+        n_codes=n(),                
+        # number of unique codes for same outcome, "severity"?
+        n_unique_codes=n_distinct(ICD_code), 
+        # Get earliest point in history where a outcome-associated code was assigned i.e.
+        # => [0,1] range, 0 == earliest, 1 == latest, NA they are a control
         earliest_diagnosis=
-            time_length(-1 + min(encounter_date) - history_start, unit='seconds') / history_length
+            {-1 + min(encounter_date) - history_start} %>%
+            time_length(unit='seconds') %>%
+            {. / history_length} %>%
+            {ifelse(. < 0, NA, .)}
     ) %>%  
-    # the -1 offset tells us when it is null vs the diagnosis is actually on the first day
-    mutate(earliest_diagnosis=ifelse(earliest_diagnosis < 0, NA, earliest_diagnosis)) %>% 
-    complete(
-        patient_outcome,
-        fill=list(n=0)
-    ) %>% # make outcomes with 0 matching codes explicit
-    filter(!is.na(patient_outcome)) %>%   # remove empty case
+    complete(outcome.type, fill=list(n=0)) %>% # make outcomes with 0 matching codes explicit
+    filter(!is.na(outcome.type)) %>%   # remove empty case
     # binarize and pivot to M binary columns for all M phenotypes
-    mutate(
-        case_control_status=
-            ifelse(n > 0, 'case', 'control') %>% 
-            factor(levels=c('control', 'case'))
-    ) %>% 
+    mutate(case_control_binary=ifelse(is.na(n_codes), FALSE, n_codes > 0)) %>% 
     select(
-        patient_outcome,
-        earliest_diagnosis,
-        case_control_status
+        outcome.type,        # what the outcome is 
+        case_control_binary, # patient-specific outcome (0/1)
+        earliest_diagnosis,  # if case -> normalized time they first had it
+        n_codes,             # total number of codes matching the case definition
+        n_unique_codes       # unique number of codes matching the case definition
     )
 }
 
-summarize_patient_history <- function(
-    patient_codes,
-    phenotype_code_mappings_df,
-    ...){
-    # patient_codes <- tmp$patient_codes[[1]]
-    # Get binary phenotypes for patient i.e. have they ever had a code for SI, SA, etc.
-    patient_outcomes_binary_df <- 
-        compute_patient_outcomes(
-            patient_codes,
-            phenotype_code_mappings_df
+compute_all_patient_outcomes <- function(){
+    # for every patient, see which relevant phenotypes it has
+    direct_code_outcomes <- 
+        load_all_patient_histories() %>% 
+        # Get binary phenotypes for patient i.e. have they ever had a code for SI, SA, etc.
+        mutate(
+            patient_outcomes=
+                future_pmap(
+                    .l=.,
+                    .f=compute_patient_outcomes,
+                    phenotype_code_mappings_df=
+                        load_ICD_Phenotype_Mappings() %>% 
+                        unnest(ICD_code_list),
+                    .progress=TRUE
+                )
+        ) %>%
+        select(-c(patient_codes)) %>%
+        unnest(patient_outcomes)
+    # create new possible outcomes using combinations of SI, Broad_SA and Narrow_SA
+    indirect_code_outcomes <- 
+        direct_code_outcomes %>%
+        # 1 binary column for each  outcome
+        select(FID, outcome.type, case_control_binary) %>% 
+        pivot_wider(names_from=outcome.type, values_from=case_control_binary) %>% 
+        # Define alternate outcome encodings from lorenza's original logic
+        # So define cases/controls explicitly and exclude any samples with NA in the outcome
+        mutate(
+            # Any outcome
+            any_ICD =
+                case_when(
+                     SI | ( Broad_SA |  Narrow_SA) ~ 'case',
+                    !SI & (!Broad_SA & !Narrow_SA) ~ 'control',
+                    .default=NA
+                ),
+            # Only thoughts
+            only_SI =
+                case_when(
+                     SI & (!Broad_SA & !Narrow_SA) ~ 'case',
+                    !SI & (!Broad_SA & !Narrow_SA) ~ 'control',
+                    .default=NA
+                ),
+            # only narrow action
+            only_Narrow = 
+                case_when(
+                    !SI & (!Broad_SA &  Narrow_SA) ~ 'case',
+                    !SI & (!Broad_SA & !Narrow_SA) ~ 'control',
+                    .default=NA
+                ),
+            # thoughts and all actions
+            all_ICD =        
+                case_when(
+                     SI & ( Broad_SA &  Narrow_SA) ~ 'case',
+                    !SI & (!Broad_SA & !Narrow_SA) ~ 'control',
+                    .default=NA
+                ),
+            # if the person showed no Ideation before action + action severity
+            only_Action = 
+                case_when(
+                    !SI & ( Broad_SA &  Narrow_SA) ~ 'case',
+                    !SI & (!Broad_SA &  Narrow_SA) ~ 'case',
+                    !SI & ( Broad_SA & !Narrow_SA) ~ 'case',
+                    !SI & (!Broad_SA & !Narrow_SA) ~ 'control',
+                    .default=NA
+                ),
+            # thoughts and some kind of action
+            both_SASI= 
+                case_when(
+                     SI & ( Broad_SA &  Narrow_SA) ~ 'case',
+                     SI & (!Broad_SA &  Narrow_SA) ~ 'case',
+                     SI & ( Broad_SA & !Narrow_SA) ~ 'case',
+                     SI & (!Broad_SA & !Narrow_SA) ~ 'control',
+                    .default=NA
+                ),
+            across(where(is.logical), ~ ifelse(.x, 'case', 'control')),
+        ) %>%
+        # tidy format different outcomes
+        pivot_longer(
+            -c(FID),
+            names_to='outcome.type',    # how labels are defined per patient
+            values_to='case_control_status' # actual per-patient label assignments
+        ) %>%
+        filter(outcome.type %notin% unique(direct_code_outcomes$outcome.type)) %>% 
+        # only keep outcomes for patients included in each outcome type
+        filter(!is.na(case_control_status))
+        # factorize all cases/controls now defined explicity
+    # get direct and inffered outcomes
+    direct_code_outcomes %>%
+    mutate(case_control_status=ifelse(case_control_binary, 'case', 'control')) %>%
+    select(-c(case_control_binary)) %>% 
+    bind_rows(indirect_code_outcomes)
+}
+
 load_all_patient_outcomes <- function(force_redo=FALSE, ...){
     check_cached_results(
         results_file=CLEAN_OUTCOMES_DATA_FILE,
         force_redo=force_redo,
         results_fnc=compute_all_patient_outcomes,
         ...
+    ) %>% 
+    mutate(case_control_status=factor(case_control_status, levels=c('control', 'case')))
+}
+
     )
 }
 
@@ -469,21 +591,6 @@ summarize_all_patient_histories <- function(){
             )
     ) %>%
     select(-c(patient_codes)) %>%
-    unnest(patient_code_stats) %>% 
-    # Define alternate outcome encodings from lorenza original logic
-    mutate(
-        si_icd = case_when( si > 0 ~ 1),
-        nsa_icd = case_when( na_sa > 0 ~ 1),
-        any_icd = 1, 
-        any_sui = case_when( na_sa > 0 | b_sa > 0 ~ 1), 
-        any_sa = case_when( na_sa > 0 ~ 1 ),
-        any_si = case_when( si > 0 ~ 1),
-        any_si_cleaned_controls = case_when( any_si > 0 ~ 1, b_sa > 0 | any_sa > 0 ~ -9 ), 
-        any_sa_cleaned_controls = case_when( na_sa > 0 ~ 1, si > 0 ~ -9),
-        any_si_only_cleaned_controls = case_when( si > 0 & b_sa == 0 & na_sa == 0 ~ 1, b_sa != 0 | na_sa != 0 ~ -9),
-        # any_nsa = case_when(na_sa > 0 ~ 1)
-    ) %>%
-    mutate(across(everything(), ~replace_na(.x, 0)))
 }
 
 load_all_patient_history_features <- function(force_redo=FALSE, ...){

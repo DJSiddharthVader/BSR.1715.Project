@@ -124,29 +124,136 @@ demographics_df %>%
     theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1))
 ```
 
-## Defining patient outcomes 
+## Defining Patient Outcomes 
 
 For every patinent we want to create a discrete output column that specifies what experience (if any) the patient had with Suicidal Ideation or Actions.
-We have 3 lists of ICD codes, where if a patient has been assigned a code, they have the outcome for Ideation (SI), Broad Action (Broad SA) and Narrow Action (Narrow SA), and "control" if they dont match any codes across all lists.  
-Using these lists of codes
-Using the assigned ICD codes we can define these discrete columns in several other ways as  follows and test for differences in model construction. 
+We have 3 lists of ICD codes, where for each list a patient is a "case" if they were assigned a matching code >= 1 time, and control otherwise. 
+These "directly" observed outcomes are:
 
-  - `Full`:  {"None", "SI", "Broad SA", "Narrow SA"}
-  - `SI Only`:  {"None", "SI"}
-  - `Any SI`:  {"None", "SI", "Broad SA", "Narrow SA"}
-  - `Any SA`:  {"None", "Broad SA", "Narrow SA"}
+- Ideation (SI) 
+- Broad Action (Broad SA) 
+- Narrow Action (Narrow SA)
+- Substance Use Disorder (Substance UD)
+- Alcohol Use Disorder (Alcohol UD)
 
-*Note* that all encodings use the same set of samples, just changing the case/control labels.
-We can also assign other phenotypes, such as Alcohol Use Disorder and Substance Use Disorder from the ICD codes in the same way.
+We can further define outcomes based on combinations of SI, BSA and NSA. 
+Each of these combinations excludes some set of samples to make the case/control comparison more clearly interpretable. 
 
-## Plot Case/Control Frequencies
+The definitions of these "infered" binary outcomes are:
+
+| Outcome Type  | Description               | Case/Control | SI  | Broad_SA | Narrow_SA |
+|:--------------|:--------------------------|:-------------|:---:|:--------:|:---------:|
+| `any_ICD`     | any ideation or action    | control      | [ ] | [ ]      | [ ]       |
+|               |                           | case         | [x] | [x]      | [x]       |
+| `only_SI`     | Only Ideation no action   | control      | [ ] | [ ]      | [ ]       |
+|               |                           | case         | [x] | [ ]      | [ ]       |
+| `only_Narrow` | only narrow action        | control      | [ ] | [ ]      | [ ]       |
+|               |                           | case         | [ ] | [ ]      | [x]       |
+| `all_ICD`     | thoughts and all actions  | control      | [ ] | [ ]      | [ ]       |
+|               |                           | case         | [x] | [x]      | [x]       |
+| `only_Action` | No Ideation before action | control      | [ ] | [ ]      | [ ]       |
+|               |                           | case         | [ ] | [x]      | [ ]       |
+|               |                           |              | [ ] | [ ]      | [x]       |
+|               |                           |              | [ ] | [x]      | [ ]       |
+| `both_SASI`   | thoughts and action       | control      | [ ] | [ ]      | [ ]       |
+|               |                           | case         | [x] | [x]      | [ ]       |
+|               |                           |              | [x] | [ ]      | [x]       |
+|               |                           |              | [x] | [x]      | [x]       |
+: How we defined the "inferred" outcomes 
+
+## Plot Case/Control Frequencies Across Outcomes
 
 Now we can load the outcomes and plot their frequencies against our demogrpahics and our co-morbidities
 ```{r load_outcome_data}
 all_patient_outcomes_df <- load_all_patient_outcomes(force_redo=FALSE)
+all_patient_outcomes_df %>%
+    filter(outcome.type == 'SI') %>% 
+    group_by(case_control_status) %>% 
+    slice_head(n=4) %>% 
+    ungroup() %>% 
+    kable()
 ```
-Plots
-```{r plot_outcome_frequencies}
-print("TODO")
+Now we can plot Case/Control frequencies for each outcome
+```{r plot_outcome_frequencies, fig.dims=c(4,8)}
+direct_outcomes <- unique(load_ICD_Phenotype_Mappings()$outcome.type)
+# all_patient_outcomes_df
+all_patient_outcomes_df %>% 
+    select(FID, outcome.type, case_control_status) %>%
+    mutate(outcome.definition=ifelse(outcome.type %in% direct_outcomes, 'direct', 'inferred')) %>% 
+    group_by(
+        outcome.definition,
+        outcome.type,
+        case_control_status
+    ) %>% 
+    summarize(n=n()) %>%
+    mutate(pct=prop.table(n)) %>%  # counts to percentages
+    mutate(ypos=1 - (cumsum(pct) - pct/2)) %>%  # percentage label position on figure
+    {
+        ggplot(
+            data=.,
+            mapping=
+                aes(
+                    x=outcome.type,
+                    y=pct
+                )
+        ) + 
+        geom_col(aes(fill=case_control_status), position='stack') +  # stacked bar plot
+        geom_text(
+            aes(
+                y=ypos,
+                label=
+                    scales::number(
+                        n,
+                        accuracy=0.1,
+                        scale_cut=scales::cut_short_scale()
+                    ),
+            ),
+            vjust=0.5,    # nudge above top of bar
+            size = 3
+        ) + 
+        facet_grid(
+            cols=vars(outcome.definition),
+            # rows=vars(metric),
+            scales='free'
+        ) +
+        scale_y_continuous(labels=scales::percent) +
+        make_ggtheme() +
+        theme(
+            axis.text.x=element_text(angle=45, hjust=1, vjust=0.5),
+            axis.title=element_blank(),
+            legend.title=element_blank()
+        )
+    }
+```
+For those direct outcome cases, we can also plot those extra datapoints to see how our cases vary
+```{r plot_case_outcome_features, fig.dims=c(6,8)}
+all_patient_outcomes_df %>% 
+    filter(outcome.type %in% direct_outcomes) %>% 
+    filter(case_control_status == 'case') %>% 
+    filter(n_codes < 200) %>%  # wierd outliers
+    pivot_longer(starts_with('n_'), names_to='metric', values_to='value') %>% 
+    {
+        ggplot(
+            data=.,
+            mapping=
+                aes(
+                    x=earliest_diagnosis,
+                    y=value,
+                    color=outcome.type
+                )
+        ) + 
+        geom_point() +
+        # geom_smooth(method='lm') +
+        facet_grid(
+            rows=vars(metric),
+            scales='free_y'
+        ) +
+        make_ggtheme() +
+        theme(
+            # axis.text.x=element_text(angle=45, hjust=0.5, vjust=0.5),
+            axis.title.y=element_blank(),
+            legend.title=element_blank()
+        )
+    }
 ```
 
