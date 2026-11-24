@@ -1,0 +1,107 @@
+[
+  {
+    "objectID": "notebooks/04_Bootstrapping.html",
+    "href": "notebooks/04_Bootstrapping.html",
+    "title": "Bootstrap Resampling For Class Imbalance",
+    "section": "",
+    "text": "Ok, case/controls are very imbalanced, so can we apply bootstrapping, so for 10K bootstraps:\n\nbootstrap pick ALL cases + same number of random controls\nRun basic glm as specified above\ntidy into neat tabel\n\nNow look at bootstrap distributions and compute empirical p-values from unbalanced results above"
+  },
+  {
+    "objectID": "notebooks/04_Bootstrapping.html#bootstrapping",
+    "href": "notebooks/04_Bootstrapping.html#bootstrapping",
+    "title": "Bootstrap Resampling For Class Imbalance",
+    "section": "",
+    "text": "Ok, case/controls are very imbalanced, so can we apply bootstrapping, so for 10K bootstraps:\n\nbootstrap pick ALL cases + same number of random controls\nRun basic glm as specified above\ntidy into neat tabel\n\nNow look at bootstrap distributions and compute empirical p-values from unbalanced results above"
+  },
+  {
+    "objectID": "notebooks/02_Featurizing.Medical.History.html",
+    "href": "notebooks/02_Featurizing.Medical.History.html",
+    "title": "Featurizing Full Medical History for Modelling",
+    "section": "",
+    "text": "We have the history of when which ICD codes were assigned to each patient, so we can featurize this time series to get the following sets of values per patient."
+  },
+  {
+    "objectID": "notebooks/02_Featurizing.Medical.History.html#describe-basic-feature-of-medical-history",
+    "href": "notebooks/02_Featurizing.Medical.History.html#describe-basic-feature-of-medical-history",
+    "title": "Featurizing Full Medical History for Modelling",
+    "section": "Describe Basic Feature of Medical History",
+    "text": "Describe Basic Feature of Medical History\nNow we can add features derived from each patients medical history. Here the “history” is every time they were assigned a unique ICD code on a specific date, so a 2-column tibble with the columns encounter_date and ICD_code. From such a table we can compute the following features and what they may represent to our models\n\nHow we featurize each patient’s medical history\n\n\n\n\n\n\n\nFeature Name\nDefinition\nInterpretation\n\n\n\n\nn_codes\ntotal codes assigned (unique date + code)\n\n\n\nn_unique_codes\nunique codes assigned\nhow many conditions does the patient have? health “prior”?\n\n\nhistory_length\ntime between first and most recent visit\nextensive medical history? many conditions? access to healthcare?\n\n\nn_visits\nnumber of unique visits recorded\nsame as length, but maybe better\n\n\nmost_common_code\nwhich code was assigned the most frequently to the patient\ntheir longest known condition? (appears on multiple visits)\n\n\nmost_common_code.freq\nhow frequently the most common code was assigned out of all codes assigned\nhow long they’ve known about theyre longest known condition (# of visits\n\n\ncode_frequency\nn_codes / history_length"
+  },
+  {
+    "objectID": "notebooks/02_Featurizing.Medical.History.html#capture-shape-of-medical-history",
+    "href": "notebooks/02_Featurizing.Medical.History.html#capture-shape-of-medical-history",
+    "title": "Featurizing Full Medical History for Modelling",
+    "section": "Capture “Shape” of Medical History",
+    "text": "Capture “Shape” of Medical History\nSee notes here"
+  },
+  {
+    "objectID": "notebooks/02_Featurizing.Medical.History.html#plotting-history-derived-features",
+    "href": "notebooks/02_Featurizing.Medical.History.html#plotting-history-derived-features",
+    "title": "Featurizing Full Medical History for Modelling",
+    "section": "Plotting History-derived Features",
+    "text": "Plotting History-derived Features\nNow we can load the shape features derived from each patient’s code history across all patients\n\n\nCode\nprint(\"TODO\")\n\n\n[1] \"TODO\"\n\n\nCode\n# all_medical_history_shape_features_df &lt;- load_all_patient_history_features(force_redo=FALSE)\n# all_medical_history_shape_features_df %&gt;%\n#     head() %&gt;%\n#     kable()\n\n\nFirst we can plot the “basic” features and the more “complex” features\n\n\nCode\nprint(\"TODO\")\n\n\n[1] \"TODO\""
+  },
+  {
+    "objectID": "index.html",
+    "href": "index.html",
+    "title": "BSR 1715 Final Project",
+    "section": "",
+    "text": "For this project we examine the Mt. Sinai Millions Cohort, investigating patients experiences with Suicidal Ideation and/or Actions. Here are the steps in our analysis for clean + investigating + interpreting the data:\n\nPatient Demographics & Outcomes\nFeaturizing Medical History Per Patient\nLinear Modelling\nBootstrapping"
+  },
+  {
+    "objectID": "notebooks/01_Patient.Outcomes.html",
+    "href": "notebooks/01_Patient.Outcomes.html",
+    "title": "Patient Demographics and Outcomes",
+    "section": "",
+    "text": "The dataset is for patients part of the Mt. Sinai Millions (MSM) cohort, for each patient we have some demographic information and their “medical history”. The medical history is the list of ICD codes (specifiyng diagnoses) assigned to a patient by a doctor during a hospital visit for all recorded vists for that patient. So for every visit recorded we have the set of ICD codes assigned. We will turn this long-form medical history into a set of descriptive features for each patient that are better suited to linear modelling where patients are independent data points. We also use the medical history to define the outcome we are studying for each patient and whether they experience SI, Broad SA or Narrow SA."
+  },
+  {
+    "objectID": "notebooks/01_Patient.Outcomes.html#dataset",
+    "href": "notebooks/01_Patient.Outcomes.html#dataset",
+    "title": "Patient Demographics and Outcomes",
+    "section": "",
+    "text": "The dataset is for patients part of the Mt. Sinai Millions (MSM) cohort, for each patient we have some demographic information and their “medical history”. The medical history is the list of ICD codes (specifiyng diagnoses) assigned to a patient by a doctor during a hospital visit for all recorded vists for that patient. So for every visit recorded we have the set of ICD codes assigned. We will turn this long-form medical history into a set of descriptive features for each patient that are better suited to linear modelling where patients are independent data points. We also use the medical history to define the outcome we are studying for each patient and whether they experience SI, Broad SA or Narrow SA."
+  },
+  {
+    "objectID": "notebooks/01_Patient.Outcomes.html#plot-patient-demographics",
+    "href": "notebooks/01_Patient.Outcomes.html#plot-patient-demographics",
+    "title": "Patient Demographics and Outcomes",
+    "section": "Plot Patient Demographics",
+    "text": "Plot Patient Demographics\nLoad clean demographics data\n\n\nCode\n# all_combined_data &lt;- load_all_combined_data(force_redo=FALSE)\ndemographics_df &lt;- \n    load_demographics_data(force_redo=FALSE) %&gt;% \n    # turn columns into neat factors, leaving NAs as NAs\n    factorize_demographics_data() %&gt;% \n    # remove all patients without complete demographic records\n    filter(if_all(everything(), ~!is.na(.x))) %&gt;%\n    select(\n        FID,\n        current_age,\n        gender,\n        ethnicity,\n        is_deceased,\n        is_religious,\n        is_cisgender,\n        is_married\n    )\n\n\n0.383 sec elapsed\n\n\nCode\n# print rows for investigating\ndemographics_df %&gt;% \n    head() %&gt;% \n    kable()\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nFID\ncurrent_age\ngender\nethnicity\nis_deceased\nis_religious\nis_cisgender\nis_married\n\n\n\n\nSINAI_69668_AB50932912\n57\nMale\nEAS\nAlive\nnot religious\ncisgender\nmarried\n\n\nSINAI_55578_AB49375834\n45\nMale\nAFR\nDeceased\nreligious\ncisgender\nnot married\n\n\nSINAI_184739_1134407361\n72\nMale\nEUR\nAlive\nnot religious\ncisgender\nmarried\n\n\nSINAI_30475_AB41948963\n56\nFemale\nSAS\nAlive\nreligious\ncisgender\nmarried\n\n\nSINAI_27213_AB38973160\n82\nFemale\nAFR\nAlive\nreligious\ncisgender\nnot married\n\n\nSINAI_33293_AB43789212\n73\nMale\nEUR\nAlive\nreligious\ncisgender\nnot married\n\n\n\n\n\nPlot individual distributions for all 40280 patients with no missing data.\n\n\nCode\nmake_single_ggbar &lt;- function(col_name, plot_df=demographics_df){\n    plot_df %&gt;% \n    select(!!sym(col_name)) %&gt;%\n    count(!!sym(col_name)) %&gt;% \n    add_column(feature=col_name) %&gt;%  # dummy x-axis\n    mutate(pct=prop.table(n)) %&gt;%  # counts to percentages\n    arrange(!!sym(col_name)) %&gt;% \n    mutate(ypos=1 - (cumsum(pct) - pct/2)) %&gt;%  # percentage label position on figure\n    {\n        ggplot(\n            data=.,\n            aes(\n                x=feature,\n                y=pct,\n                fill=.data[[col_name]],\n            )\n        ) + \n        geom_col(position='stack') +  # stacked bar plot\n        geom_text(\n            aes(\n                label=scales::percent(pct, accuracy=0.1),\n                y=ypos\n            ),\n            vjust=0.5,    # nudge above top of bar\n            size = 3\n        ) + \n        scale_y_continuous(labels=scales::percent) +\n        guides(fill=guide_legend(ncol=1)) +\n        make_ggtheme() +\n        theme(\n            legend.position='right',\n            axis.title=element_blank()\n        )\n    }\n}\ncurrent_age_dist &lt;- \n    demographics_df %&gt;% select(current_age) %&gt;% add_column(feature='age') %&gt;%\n    {\n        ggplot(\n            aes(x=current_age),\n            data=.\n        ) + \n        geom_histogram(binwidth=1) +\n        # coord_flip() +\n        scale_y_continuous(labels=label_number(scale_cut=cut_short_scale())) +\n        make_ggtheme() +\n        theme(\n            axis.text.x=element_text(angle=55),\n            axis.title.y=element_blank()\n        )\n    }\n# make plot with patchwork\ndesign &lt;- \"\nCCAB\nDEFG\n\"\n{\n    make_single_ggbar('gender')       +\n    make_single_ggbar('ethnicity')    + \n    current_age_dist +\n    make_single_ggbar('is_deceased')  +\n    make_single_ggbar('is_religious') +\n    make_single_ggbar('is_cisgender') +\n    make_single_ggbar('is_married')   +\n    plot_layout(design=design)\n}\n\n\n\n\n\n\n\n\n\nPlot crosstabs of everything with w/ Gender\n\n\nCode\ndemographics_df %&gt;%\n    select(-FID) %&gt;%\n    ggpairs(\n        binwidth=1,\n        columns=setdiff(colnames(demographics_df), c('FID', 'gender')),\n        mapping=ggplot2::aes(color=gender),\n        proportions='auto',\n        upper = list(continuous = wrap(ggally_cor, displayGrid = FALSE))\n    ) +\n    make_ggtheme() +\n    theme(\n        axis.text.x=element_text(angle=45, hjust=1, vjust=1)\n    )"
+  },
+  {
+    "objectID": "notebooks/01_Patient.Outcomes.html#defining-patient-outcomes",
+    "href": "notebooks/01_Patient.Outcomes.html#defining-patient-outcomes",
+    "title": "Patient Demographics and Outcomes",
+    "section": "Defining Patient Outcomes",
+    "text": "Defining Patient Outcomes\nFor every patinent we want to create a discrete output column that specifies what experience (if any) the patient had with Suicidal Ideation or Actions. We have 3 lists of ICD codes, where for each list a patient is a “case” if they were assigned a matching code &gt;= 1 time, and control otherwise. These “directly” observed outcomes are:\n\nIdeation (SI)\nBroad Action (Broad SA)\nNarrow Action (Narrow SA)\nSubstance Use Disorder (Substance UD)\nAlcohol Use Disorder (Alcohol UD)\n\nWe can further define outcomes based on combinations of SI, BSA and NSA. Each of these combinations excludes some set of samples to make the case/control comparison more clearly interpretable.\nThe definitions of these “infered” binary outcomes are:\n\nHow we defined the “inferred” outcomes\n\n\n\n\n\n\n\n\n\n\nOutcome Type\nDescription\nCase/Control\nSI\nBroad_SA\nNarrow_SA\n\n\n\n\nany_ICD\nany ideation or action\ncontrol\n[ ]\n[ ]\n[ ]\n\n\n\n\ncase\n[x]\n[x]\n[x]\n\n\nonly_SI\nOnly Ideation no action\ncontrol\n[ ]\n[ ]\n[ ]\n\n\n\n\ncase\n[x]\n[ ]\n[ ]\n\n\nonly_Narrow\nonly narrow action\ncontrol\n[ ]\n[ ]\n[ ]\n\n\n\n\ncase\n[ ]\n[ ]\n[x]\n\n\nall_ICD\nthoughts and all actions\ncontrol\n[ ]\n[ ]\n[ ]\n\n\n\n\ncase\n[x]\n[x]\n[x]\n\n\nonly_Action\nNo Ideation before action\ncontrol\n[ ]\n[ ]\n[ ]\n\n\n\n\ncase\n[ ]\n[x]\n[ ]\n\n\n\n\n\n[ ]\n[ ]\n[x]\n\n\n\n\n\n[ ]\n[x]\n[ ]\n\n\nboth_SASI\nthoughts and action\ncontrol\n[ ]\n[ ]\n[ ]\n\n\n\n\ncase\n[x]\n[x]\n[ ]\n\n\n\n\n\n[x]\n[ ]\n[x]\n\n\n\n\n\n[x]\n[x]\n[x]"
+  },
+  {
+    "objectID": "notebooks/01_Patient.Outcomes.html#plot-casecontrol-frequencies-across-outcomes",
+    "href": "notebooks/01_Patient.Outcomes.html#plot-casecontrol-frequencies-across-outcomes",
+    "title": "Patient Demographics and Outcomes",
+    "section": "Plot Case/Control Frequencies Across Outcomes",
+    "text": "Plot Case/Control Frequencies Across Outcomes\nNow we can load the outcomes and plot their frequencies against our demogrpahics and our co-morbidities\n\n\nCode\nall_patient_outcomes_df &lt;- load_all_patient_outcomes(force_redo=FALSE)\n\n\n0.993 sec elapsed\n\n\nCode\nall_patient_outcomes_df %&gt;%\n    filter(outcome.type == 'SI') %&gt;% \n    group_by(case_control_status) %&gt;% \n    slice_head(n=4) %&gt;% \n    ungroup() %&gt;% \n    kable()\n\n\n\n\n\n\n\n\n\n\n\n\n\nFID\noutcome.type\nearliest_diagnosis\nn_codes\nn_unique_codes\ncase_control_status\n\n\n\n\nSINAI-Million_1105332_2132469751\nSI\nNA\nNA\nNA\ncontrol\n\n\nSINAI-Million_193941_3536477784\nSI\nNA\nNA\nNA\ncontrol\n\n\nSINAI-Million_P61659021_2132515715\nSI\nNA\nNA\nNA\ncontrol\n\n\nSINAI-Million_1038325_2132570634\nSI\nNA\nNA\nNA\ncontrol\n\n\nSINAI_73326_AB50297407\nSI\n0.3344853\n1\n1\ncase\n\n\nSINAI_75833_1094880530\nSI\n0.6640721\n8\n1\ncase\n\n\nSINAI-Million_1165179_3600843111\nSI\n0.6672414\n1\n1\ncase\n\n\nSINAI_13520_AB36487809\nSI\n0.7206092\n1\n1\ncase\n\n\n\n\n\nNow we can plot Case/Control frequencies for each outcome\n\n\nCode\ndirect_outcomes &lt;- unique(load_ICD_Phenotype_Mappings()$outcome.type)\n# all_patient_outcomes_df\nall_patient_outcomes_df %&gt;% \n    select(FID, outcome.type, case_control_status) %&gt;%\n    mutate(outcome.definition=ifelse(outcome.type %in% direct_outcomes, 'direct', 'inferred')) %&gt;% \n    group_by(\n        outcome.definition,\n        outcome.type,\n        case_control_status\n    ) %&gt;% \n    summarize(n=n()) %&gt;%\n    mutate(pct=prop.table(n)) %&gt;%  # counts to percentages\n    mutate(ypos=1 - (cumsum(pct) - pct/2)) %&gt;%  # percentage label position on figure\n    {\n        ggplot(\n            data=.,\n            mapping=\n                aes(\n                    x=outcome.type,\n                    y=pct\n                )\n        ) + \n        geom_col(aes(fill=case_control_status), position='stack') +  # stacked bar plot\n        geom_text(\n            aes(\n                label=scales::number(n, scale_cut=scales::cut_short_scale()),\n                y=ypos\n            ),\n            vjust=0.5,    # nudge above top of bar\n            size = 3\n        ) + \n        facet_grid(\n            cols=vars(outcome.definition),\n            # rows=vars(metric),\n            scales='free'\n        ) +\n        scale_y_continuous(labels=scales::percent) +\n        make_ggtheme() +\n        theme(\n            axis.text.x=element_text(angle=45, hjust=1, vjust=0.5),\n            axis.title=element_blank(),\n            legend.title=element_blank()\n        )\n    }\n\n\n\n\n\n\n\n\n\nFor those direct outcome cases, we can also plot those extra datapoints to see how our cases vary\n\n\nCode\nall_patient_outcomes_df %&gt;% \n    filter(outcome.type %in% direct_outcomes) %&gt;% \n    filter(case_control_status == 'case') %&gt;% \n    filter(n_codes &gt; 500) %&gt;%  # wierd outliers\n    pivot_longer(starts_with('n_'), names_to='metric', values_to='value') %&gt;% \n    {\n        ggplot(\n            data=.,\n            mapping=\n                aes(\n                    x=earliest_diagnosis,\n                    y=value,\n                    color=outcome.type\n                )\n        ) + \n        geom_point() +\n        # geom_smooth(method='lm') +\n        facet_grid(\n            rows=vars(metric),\n            scales='free_y'\n        ) +\n        make_ggtheme() +\n        theme(\n            # axis.text.x=element_text(angle=45, hjust=0.5, vjust=0.5),\n            axis.title.y=element_blank(),\n            legend.title=element_blank()\n        )\n    }"
+  },
+  {
+    "objectID": "notebooks/03_Linear.Modelling.html",
+    "href": "notebooks/03_Linear.Modelling.html",
+    "title": "Linear Modelling across different Outcomes",
+    "section": "",
+    "text": "For every patient we have their\n\ndemographic features :\n\ncurrent_age\ngender\nethnicity\nreligiosity\nmarriage status\n\nOther phenotypes\n\nalcohol use disorder\nsubstance use disorders\n\nPatient Outcome, whether they were coded for\n\nSI\nBroad SA\nNarrow SA"
+  },
+  {
+    "objectID": "notebooks/03_Linear.Modelling.html#basic-model-setup",
+    "href": "notebooks/03_Linear.Modelling.html#basic-model-setup",
+    "title": "Linear Modelling across different Outcomes",
+    "section": "",
+    "text": "For every patient we have their\n\ndemographic features :\n\ncurrent_age\ngender\nethnicity\nreligiosity\nmarriage status\n\nOther phenotypes\n\nalcohol use disorder\nsubstance use disorders\n\nPatient Outcome, whether they were coded for\n\nSI\nBroad SA\nNarrow SA"
+  },
+  {
+    "objectID": "notebooks/03_Linear.Modelling.html#parameter-comparisons",
+    "href": "notebooks/03_Linear.Modelling.html#parameter-comparisons",
+    "title": "Linear Modelling across different Outcomes",
+    "section": "Parameter Comparisons",
+    "text": "Parameter Comparisons\nMost basic thing, run a glm with all features and look at betas + p-values + variance contributions for each model. Basically just summary(glm(outcome ~ demographics + has_alcohol_UD + has_substance_UD + history_features))"
+  }
+]
