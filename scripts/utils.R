@@ -482,115 +482,132 @@ load_all_patient_outcomes <- function(force_redo=FALSE, ...){
     mutate(case_control_status=factor(case_control_status, levels=c('control', 'case')))
 }
 
+############################################################
+# Featurize Patient Medical Histories
+############################################################
+compute_basic_history_featues <- function(patient_codes){
+    patient_codes %>%
+    add_count(ICD_code) %>% 
+    arrange(desc(n)) %>% 
+    summarize(
+        n_total_codes=n(),
+        n_unique_codes=n_distinct(ICD_code),
+        n_visits=n_distinct(encounter_date),
+        history_length=
+            difftime(max(encounter_date), min(encounter_date))  %>%
+            time_length(unit='days')
+    ) %>%
+    mutate(
+        mean_total_codes=n_total_codes / n_visits,
+        mean_unique_codes=n_unique_codes / n_visits,
+        freq_codes=n_total_codes / history_length,
+        freq_unique_codes=n_unique_codes / history_length
     )
 }
 
+compute_cummulative_code_history <- function(patient_codes){
+    history_start  <- min(patient_codes$encounter_date)                  
+    history_end    <- max(patient_codes$encounter_date)
+    history_length <- time_length(history_end - history_start,  unit='seconds')
+    patient_codes %>%
+    select(ICD_code, encounter_date) %>% 
+    # nest all codes, so 1 row per date + list of assigned codes on thta date
+    nest(encounter_codes=c(ICD_code)) %>% 
+    arrange(encounter_date) %>% 
+    # create time variable in the range [0,1], 0 meaning history start, 1 meaning last visit
+    # based on real time, not just number of visits
+    mutate(
+        normalized_time= # u_i 
+            (encounter_date - history_start) %>% # t_i - t_0 
+            time_length(unit='seconds') %>% 
+            {. / history_length} # / (t_n - t_0)
+    ) %>% 
+    # get cummulative list of all codes assigned from history_start to timepoint i
+    # for each row i, nested tibble with 1 row per code/unique code 
+    mutate(
+        cumulative_total_codes=
+            accumulate(
+                encounter_codes,
+                \(so_far, current) bind_rows(so_far, current) 
+            ),
+        cumulative_unique_codes=
+            accumulate(
+                encounter_codes,
+                \(so_far, current) bind_rows(so_far, current) %>% distinct()
+            )
+    ) %>% 
+    # convert tibbles to ints i.e. # of codes/unique codes assigned by time i
+    mutate(
+        across( 
+            ends_with('_codes'), 
+            purrr::map_int,
+            nrow
         )
+    ) %>%
+    # make tidy, so features can easily be calculated across each profile
+    select(-c(encounter_codes)) %>% 
+    pivot_longer(
+        -c(encounter_date),
+        names_to='history_metric',
+        values_to='cumulative_codes'
+    )
+}
+
+featurize_patient_history <- function(patient_codes, ...){
+    # patient_codes <- tmp$patient_codes[[1]]
     # Compute some descriptive features from their total history of code assignments
     history_features_df <- 
         patient_codes %>%
-        add_count(ICD_code) %>% 
-        arrange(desc(n)) %>% 
-        summarize(
-            n_total_codes=n(),
-            n_unique_codes=n_distinct(ICD_code),
-            n_visits=n_distinct(encounter_date),
-            history_length=
-                difftime(max(encounter_date), min(encounter_date))  %>%
-                time_length(unit='days')
-        ) %>%
-        mutate(
-            mean_total_codes=n_total_codes / n_visits,
-            mean_unique_codes=n_unique_codes / n_visits,
-            freq_codes=n_total_codes / history_length,
-            freq_unique_codes=n_unique_codes / history_length
-        )
-    # Compute cumulative code distrivutions over time
-    codes_cummulative_df <- 
-        patient_codes %>%
-        select(ICD_code, encounter_date) %>% 
-        # nest all codes, so 1 row per date + list of assigned codes on thta date
-        nest(encounter_codes=c(ICD_code)) %>% 
-        arrange(encounter_date) %>% 
-        mutate(
-            cumulative_total_codes=
-                accumulate(
-                    encounter_codes,
-                    \(so_far, current) bind_rows(so_far, current) 
-                ),
-            cumulative_unique_codes=
-                accumulate(
-                    encounter_codes,
-                    \(so_far, current) bind_rows(so_far, current) %>% distinct()
-                )
-        ) %>% 
-        mutate(
-            across( 
-                ends_with('_codes'), 
-                purrr::map_int,
-                nrow
-            )
-        )
-        # at each timepoint we have the total/unique number of codes assigned
+        compute_basic_history_featues()
     # Now compute "shape"/"behaviour" features from code history
-    history_shape_features_df <- 
-        codes_cummulative_df %>%
-            ???
-    # reutrn everything as a single row
-    # codes_cummulative_df
-    # history_shape_features_df
-    # history_features_df
-    # patient_outcomes_binary_df
+    # history_shape_features_df <- 
+        patient_codes %>%
+        # Compute cumulative code distrivutions over time
+        compute_cummulative_code_history() %>% 
+        # at each timepoint we have the total/unique number of codes assigned
+        # for each metric compute summary feature of codes
+        group_by(history_metric) %>% 
+        mutate(
+            w_i = cumulative_codes - lag(cumulative_codes, order_by=encounter_date),
+            p_i = w_i / max(metric_value),
+            D_i = abs((cumulative_codes / max(metric_value)) - u_i)
+        ) %>% 
+        summarize(
+            normalized_mean_time=sum(p_i * u_i),
+            # gini=2 * normalized_mean_time - 1
+            KS=ifelse(D_i == max(D_i), u_i, NULL),  # only get the timepoint where D is maxed
+            shannon=(-1 / log(n()) * sum(p_i * log(p_i))),
+            accelleration=,
+            sigma_pi=,
+            mu_pi=,
+            burstiness=sigma_pi - mu_pi / (sigma_pi + mu_pi),
+        )
+    # reutrn everything as a tidy dataframe
     bind_cols(
         history_shape_features_df,
         history_features_df
-    ) %>%
-    cross_join(patient_outcomes_binary_df)
+    )
 }
 
-summarize_all_patient_histories <- function(){
-    # map ICD codes to relvant phenotypes
-    phenotype_code_mappings_df <- load_ICD_Phenotype_Mappings() %>% unnest(ICD_code_list)
-    # get all patient-ICD code assignments from diagnoses/history
-    bind_rows(
-        # load_encounter_data(),
-        # load_problems_data(),
-        # load_medical_history()
-        clean_encounter_diagnosis(),
-        clean_problem_list(),
-        clean_medical_history()
-    ) %>%  
-    # 91M total code assignments
-    mutate(ICD_code=trimws(as.character(ICD_code))) %>%
-    mutate(encounter_date=lubridate::mdy(encounter_date)) %>% 
-    # mutate(encounter_date=as.Date(encounter_date)) %>% 
-    # Remove empty/duplicate entries of ICD codes 
-    filter(!is.na(ICD_code), ICD_code != "") %>%
-    distinct(
-        ICD_code,
-        FID,
-        encounter_date,
-        .keep_all=TRUE
-    ) %>%  
-    select(-c(data_src)) %>% 
-    # 82M unique code assignments across all patients and dates after filtering
-    # for each patient, collapse all code assignment into nested tibbles, 1 row per patient
-    nest(patient_codes=c(ICD_code, dx_code_type, dx_name, encounter_date)) %>% 
-        {.} -> tmp; tmp 
-        tmp$patient_codes[[1]]
-        tmp %>% head(3) %>% 
+featurize_all_patient_histories <- function(){
     # for every patient, see which relevant phenotypes it has
     # and compute some features from a patients code history
+    load_all_patient_histories() %>% 
+        {.} -> tmp; tmp
+        patient_codes=tmp$patient_codes[[1]]
     mutate(
-        patient_code_stats=
+        history_features=
             future_pmap(
                 .l=.,
-                .f=summarize_patient_history,
-                phenotype_code_mappings_df=phenotype_code_mappings_df,
+                .f=featurize_patient_history,
+                phenotype_code_mappings_df=
+                    load_ICD_Phenotype_Mappings() %>% 
+                    unnest(ICD_code_list),
                 .progress=TRUE
             )
     ) %>%
     select(-c(patient_codes)) %>%
+    unnest(history_features)
 }
 
 load_all_patient_history_features <- function(force_redo=FALSE, ...){

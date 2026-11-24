@@ -7,11 +7,9 @@ metadata-files:
 
 {{< include _imports.qmd >}} 
 
-## Featurizing Medical history
-
 We have the history of when which ICD codes were assigned to each patient, so we can featurize this time series to get the following sets of values per patient.
 
-### Describe Basic Feature of Medical History
+## Describe Basic Feature of Medical History
 
 Now we can add features derived from each patients medical history. 
 Here the "history" is every time they were assigned a unique ICD code on a specific date,
@@ -28,24 +26,23 @@ From such a table we can compute the following features and what they may repres
  `most_common_code.freq` | how frequently the most common code was assigned out of all codes assigned | how long they've known about theyre longest known condition (# of visits |
 `code_frequency` | n_codes / history_length | |
 
-: How we featurize each patient's medical history {tbl-colwidth="[10,40,50]"}
+: How we featurize each patient's medical history
 
-
-- can compute a cumulative distribution over time i.e. number total codes assigned & number unique codes assigned
-- burstiness: did the patient have a single encounter where they gained lots of codes? i.e. big medical change?
-- 
-
-### Capture "Shape" of Medical History
+## Capture "Shape" of Medical History
 
 See notes [here](https://docs.google.com/document/d/1cLN_i3Gwpaw1JAnrSIQBvaNd5htuucYVKfBv-OQY-Oc/edit?usp=sharing)
 
-### Plotting History-derived Features
+## Plotting History-derived Features
 
 Now we can load the shape features derived from each patient's code history across all patients
 ```{r load_history_shape_features}
-all_medical_history_shape_features_df <- load_all_patient_history_features(force_redo=FALSE)
+print("TODO")
+# all_medical_history_shape_features_df <- load_all_patient_history_features(force_redo=FALSE)
+# all_medical_history_shape_features_df %>%
+#     head() %>%
+#     kable()
 ```
-Plots
+First we can plot the "basic" features and the more "complex" features
 ```{r plot_history_shape_features}
 print("TODO")
 ```
