@@ -1,8 +1,5 @@
 ---
 title: Patient Demographics and Outcomes
-date: "`r Sys.Date()`"
-metadata-files:
-    - _report_options.yml
 ---
 
 {{< include _imports.qmd >}} 
@@ -35,46 +32,47 @@ demographics_df <-
         is_cisgender,
         is_married
     )
+# print rows for investigating
+demographics_df %>% 
+    head() %>% 
+    kable()
 ```
 Plot individual distributions for all `r nrow(demographics_df)` patients with no missing data.
 ```{r plot_demographics, fig.dims=c(6, 8)}
 make_single_ggbar <- function(col_name, plot_df=demographics_df){
-    plot.obj <- 
-        plot_df %>% 
-        select(!!sym(col_name)) %>%
-        count(!!sym(col_name)) %>% 
-        add_column(feature=col_name) %>%  # dummy x-axis
-        mutate(pct=prop.table(n)) %>%  # counts to percentages
-        arrange(!!sym(col_name)) %>% 
-        mutate(ypos=1 - (cumsum(pct) - pct/2)) %>%  # percentage label position on figure
-        {
-            ggplot(
-                data=.,
-                aes(
-                    x=feature,
-                    y=pct,
-                    fill=.data[[col_name]],
-                )
-            ) + 
-            geom_col(position='stack') +  # stacked bar plot
-            geom_text(
-                aes(
-                    label=scales::percent(pct, accuracy=0.1),
-                    y=ypos
-                ),
-                vjust=0.5,    # nudge above top of bar
-                size = 3
-            ) + 
-            scale_y_continuous(labels=scales::percent) +
-            guides(fill=guide_legend(ncol=1)) +
-            theme_minimal() +
-            theme(
-                # axis.text.x=element_text(angle=55, vjust=1, hjust=1),
-                # axis.text.x = element_blank(),
-                legend.position='right',
-                axis.title = element_blank()
+    plot_df %>% 
+    select(!!sym(col_name)) %>%
+    count(!!sym(col_name)) %>% 
+    add_column(feature=col_name) %>%  # dummy x-axis
+    mutate(pct=prop.table(n)) %>%  # counts to percentages
+    arrange(!!sym(col_name)) %>% 
+    mutate(ypos=1 - (cumsum(pct) - pct/2)) %>%  # percentage label position on figure
+    {
+        ggplot(
+            data=.,
+            aes(
+                x=feature,
+                y=pct,
+                fill=.data[[col_name]],
             )
-        }
+        ) + 
+        geom_col(position='stack') +  # stacked bar plot
+        geom_text(
+            aes(
+                label=scales::percent(pct, accuracy=0.1),
+                y=ypos
+            ),
+            vjust=0.5,    # nudge above top of bar
+            size = 3
+        ) + 
+        scale_y_continuous(labels=scales::percent) +
+        guides(fill=guide_legend(ncol=1)) +
+        make_ggtheme() +
+        theme(
+            legend.position='right',
+            axis.title=element_blank()
+        )
+    }
 }
 current_age_dist <- 
     demographics_df %>% select(current_age) %>% add_column(feature='age') %>%
@@ -86,7 +84,7 @@ current_age_dist <-
         geom_histogram(binwidth=1) +
         # coord_flip() +
         scale_y_continuous(labels=label_number(scale_cut=cut_short_scale())) +
-        theme_minimal() +
+        make_ggtheme() +
         theme(
             axis.text.x=element_text(angle=55),
             axis.title.y=element_blank()
@@ -110,8 +108,6 @@ DEFG
 ```
 Plot crosstabs of everything with w/ Gender
 ```{r demographic_pair_plots_by_gender}
-#| warnings: false
-
 demographics_df %>%
     select(-FID) %>%
     ggpairs(
@@ -121,7 +117,10 @@ demographics_df %>%
         proportions='auto',
         upper = list(continuous = wrap(ggally_cor, displayGrid = FALSE))
     ) +
-    theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1))
+    make_ggtheme() +
+    theme(
+        axis.text.x=element_text(angle=45, hjust=1, vjust=1)
+    )
 ```
 
 ## Defining Patient Outcomes 

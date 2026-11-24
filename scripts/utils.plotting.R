@@ -61,3 +61,38 @@ factorize_demographics_data <- function(demographics_df) {
         ethnicity=ifelse(str_detect(ethnicity, 'UNKNOWN'), 'Unknown', ethnicity) %>% factor()
     )
 }
+
+make_ggtheme <- function(...){
+    theme(
+        panel.grid.major=element_blank(), 
+        panel.grid.minor=element_blank(), 
+        panel.background=element_blank(),
+        axis.line=
+            element_line(
+                color="black",
+                linewidth=1/2.13
+            ),
+        axis.ticks=
+            element_line(
+                color="black",
+                linewidth=1/2.13
+            ),
+        axis.ticks.length=unit(3, "pt"),
+        axis.title=
+            element_text(
+                family="sans",
+                face="bold",
+                color="black",
+                size=10
+            ),
+        axis.text=
+            element_text(
+                family="sans",
+                face="bold",
+                color="black",
+                size=8
+            ),
+        ...
+    )
+}
+
