@@ -31,4 +31,5 @@ dependencies = [
     "quarto",
     "lubridate",
     "cowplot",
+    "ggh4x",
 ]
