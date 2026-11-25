@@ -3,6 +3,7 @@
 Code + Figures + Explanations for our final project for the course BSR 1715: Modern Statistics for Modern Biolody at Mt. Sinai
 
 [Full Project Walkthrough](https://djsiddharthvader.github.io/BSR.1715.Project/)
+[Final Slides](https://docs.google.com/presentation/d/1zPBpp3GLohahoVr9FF79WM1B-PJWRu848aX6LU-dQ3U/edit?slide=id.h22b11798582e2c09_0_16#slide=id.h22b11798582e2c09_0_16)
 
 ## Reproducibility
 
