@@ -23,6 +23,34 @@ For every patient we have their
    - Broad SA 
    - Narrow SA
 
+```{r loading_data}
+print("TODO")
+# all_medical_history_shape_features_df <- load_all_patient_history_features(force_redo=FALSE)
+# all_demographics_data_df <- load_demographics_data(force_redo=FALSE)
+# all_patient_outcomes_df <- load_all_patient_outcomes(force_redo=FALSE)
+# all_model_data_df <- 
+#     all_demographics_data_df %>%
+#     inner_join(
+#         all_patient_outcomes_df,
+#         by='FID'
+#     ) %>%
+#     inner_join(
+#         all_medical_history_shape_features_df,
+#         by='FID'
+#     ) %>%
+#     # make every row a full nested tibble that can be cleanly run with a liner model
+#     nest(
+#         dataset=
+#             -c(
+#                outcome.type,
+#                history_metric,
+#             )
+#     )
+# all_model_data_df %>% 
+#     head() %>%
+#     kable()
+```
+
 ## Parameter Comparisons
 
 Most basic thing, run a glm with all features and look at betas + p-values + variance contributions for each model.
