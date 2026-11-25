@@ -172,6 +172,20 @@ load_demographics_data <- function(force_redo=FALSE, ...) {
         force_redo=force_redo,
         results_fnc=clean_demographics_data,
         ...
+    ) %>% 
+    # turn columns into neat factors, leaving NAs as NAs
+    factorize_demographics_data() %>% 
+    # remove all patients without complete demographic records
+    filter(if_all(everything(), ~!is.na(.x))) %>%
+    select(
+        FID,
+        current_age,
+        gender,
+        ethnicity,
+        is_deceased,
+        is_religious,
+        is_cisgender,
+        is_married
     )
 }
 
@@ -552,7 +566,7 @@ featurize_patient_history <- function(patient_codes, ...){
     ) %>% 
     filter(!is.na(w_i)) %>%  # drop first row with no lag
     summarize(
-        n_codes=N,
+        n_codes=max(C_i),
         n_visits=n_distinct(encounter_date),
         history_length=
             difftime(max(encounter_date), min(encounter_date))  %>%
@@ -604,7 +618,7 @@ featurize_all_patient_histories <- function(){
             )
     ) %>%
     select(-c(patient_codes)) %>%
-    unnest(history_features)
+    unnest(history_features) %>% write_tsv(CLEAN_FEATURIZED_HISTORY_DATA_FILE)
 }
 
 load_all_patient_history_features <- function(force_redo=FALSE, ...){

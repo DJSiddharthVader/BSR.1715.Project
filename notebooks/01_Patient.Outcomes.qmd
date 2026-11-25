@@ -17,21 +17,7 @@ Load clean demographics data
 ```{r load_data}
 # all_combined_data <- load_all_combined_data(force_redo=FALSE)
 demographics_df <- 
-    load_demographics_data(force_redo=FALSE) %>% 
-    # turn columns into neat factors, leaving NAs as NAs
-    factorize_demographics_data() %>% 
-    # remove all patients without complete demographic records
-    filter(if_all(everything(), ~!is.na(.x))) %>%
-    select(
-        FID,
-        current_age,
-        gender,
-        ethnicity,
-        is_deceased,
-        is_religious,
-        is_cisgender,
-        is_married
-    )
+    load_demographics_data(force_redo=FALSE)
 # print rows for investigating
 demographics_df %>% 
     head() %>% 
@@ -164,7 +150,8 @@ The definitions of these "infered" binary outcomes are:
 
 Now we can load the outcomes and plot their frequencies against our demogrpahics and our co-morbidities
 ```{r load_outcome_data}
-all_patient_outcomes_df <- load_all_patient_outcomes(force_redo=FALSE)
+all_patient_outcomes_df <- 
+    load_all_patient_outcomes(force_redo=FALSE)
 all_patient_outcomes_df %>%
     filter(outcome.type == 'SI') %>% 
     group_by(case_control_status) %>% 

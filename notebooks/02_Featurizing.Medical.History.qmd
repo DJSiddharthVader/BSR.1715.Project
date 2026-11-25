@@ -38,14 +38,17 @@ all_medical_history_shape_features_df %>%
     kable()
 ```
 Now we can plot the "basic" features and the more "complex" features
-```{r plot_history_shape_features, fig.dim=c(8, 8)}
+```{r plot_history_shape_features}
+#| fig-width: 10
+#| fig-height: 6
+
 all_medical_history_shape_features_df %>%
     pivot_longer(
         -c(FID, history_metric),
         names_to='history_shape_feature',
         values_to='value'
     ) %>%  
-    filter(history_shape_feature %notin% c('mean_codes_per_visit')) %>% 
+    # filter(history_shape_feature %notin% c('mean_codes_per_visit')) %>% 
     mutate(
         complexity=
             case_when(
@@ -68,10 +71,21 @@ all_medical_history_shape_features_df %>%
                     y=value
                 )
         ) +
-        geom_boxplot(aes(fill=history_metric)) +
+        geom_boxplot() +
         ggh4x::facet_nested(
-            history_shape_feature ~ history_metric + complexity,
-            scales = 'free'
+            rows = vars(history_metric), 
+            cols = vars(complexity, history_shape_feature),
+            scales = 'free',
+            independent = 'y',
+            strip = 
+                ggh4x::strip_nested(
+                    by_layer_x = TRUE,
+                    text_x = 
+                        list(
+                            ggplot2::element_text(),  # outer
+                            ggplot2::element_blank()  # inner
+                        )
+                )
         ) +
         make_ggtheme() +
         theme(
