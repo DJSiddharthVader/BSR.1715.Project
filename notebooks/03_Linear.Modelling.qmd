@@ -1,8 +1,6 @@
 ---
 title: Linear Modelling across different Outcomes
 date: "`r Sys.Date()`"
-metadata-files:
-    - _report_options.yml
 ---
 
 {{< include _imports.qmd >}} 

@@ -32,13 +32,13 @@ There are some more basic features like "length", "total nunber of codes" etc. w
 Now we can load the shape features derived from each patient's code history across all patients
 ```{r load_history_shape_features}
 all_medical_history_shape_features_df <- 
-    load_all_patient_history_features(force_redo=TRUE)
+    load_all_patient_history_features(force_redo=FALSE)
 all_medical_history_shape_features_df %>%
     head() %>%
     kable()
 ```
 Now we can plot the "basic" features and the more "complex" features
-```{r plot_history_shape_features}
+```{r plot_history_shape_features, fig.dim=c(8, 8)}
 all_medical_history_shape_features_df %>%
     pivot_longer(
         -c(FID, history_metric),
@@ -81,3 +81,4 @@ all_medical_history_shape_features_df %>%
         )
     }
 ```
+

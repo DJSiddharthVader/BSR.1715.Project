@@ -1,8 +1,6 @@
 ---
 title: Bootstrap Resampling For Class Imbalance
 date: "`r Sys.Date()`"
-metadata-files:
-    - _report_options.yml
 ---
 
 {{< include _imports.qmd >}} 

@@ -218,7 +218,7 @@ all_patient_outcomes_df %>%
         scale_y_continuous(labels=scales::percent) +
         make_ggtheme() +
         theme(
-            axis.text.x=element_text(angle=45, hjust=1, vjust=0.5),
+            axis.text.x=element_text(angle=45, hjust=1, vjust=1),
             axis.title=element_blank(),
             legend.title=element_blank()
         )
